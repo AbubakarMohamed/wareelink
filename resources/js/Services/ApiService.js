@@ -1,25 +1,28 @@
-import axios from "@/bootstrap"; 
+import axios from "@/bootstrap";
 import { router } from "@inertiajs/react";
 
+// ----------------------------
+// 🔹 Base ApiService methods
+// ----------------------------
 const ApiService = {
   get(resource, params = {}) {
     return axios.get(resource, { params });
   },
 
-  post(resource, data) {
-    return axios.post(resource, data);
+  post(resource, data, config = {}) {
+    return axios.post(resource, data, config);
   },
 
-  put(resource, data) {
-    return axios.put(resource, data);
+  put(resource, data, config = {}) {
+    return axios.put(resource, data, config);
   },
 
-  patch(resource, data) {
-    return axios.patch(resource, data);
+  patch(resource, data, config = {}) {
+    return axios.patch(resource, data, config);
   },
 
-  delete(resource) {
-    return axios.delete(resource);
+  delete(resource, config = {}) {
+    return axios.delete(resource, config);
   },
 };
 
@@ -27,38 +30,50 @@ const ApiService = {
 // 🔹 Global Axios Interceptors
 // ----------------------------
 
-// Response Interceptor
+// ✅ Request Interceptor → ensures CSRF token is always available
+axios.interceptors.request.use(
+  async (config) => {
+    // If it's a state-changing request, make sure CSRF cookie is set
+    if (["post", "put", "patch", "delete"].includes(config.method)) {
+      await axios.get("/sanctum/csrf-cookie");
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ✅ Response Interceptor → handle auth/session errors
 axios.interceptors.response.use(
-  (response) => response, // return successful response as is
+  (response) => response, // success passthrough
   async (error) => {
     const { response } = error;
 
     if (!response) {
-      console.error("Network/Server error:", error);
+      console.error("🌐 Network/Server error:", error);
       return Promise.reject(error);
     }
 
-    // 🔸 Handle 401 Unauthorized → redirect to login
-    if (response.status === 401) {
-      console.warn("Unauthorized. Redirecting to login...");
-      router.visit(route("login")); // inertia redirect
+    switch (response.status) {
+      case 401: // Unauthorized → redirect to login
+        console.warn("🔒 Unauthorized. Redirecting to login...");
+        router.visit(route("login"));
+        break;
+
+      case 419: // CSRF token expired → refresh and retry
+        console.warn("🔄 CSRF token expired. Refreshing...");
+        try {
+          await axios.get("/sanctum/csrf-cookie"); // refresh CSRF
+          return axios.request(error.config); // retry original request
+        } catch (csrfError) {
+          console.error("❌ Failed to refresh CSRF token:", csrfError);
+          return Promise.reject(csrfError);
+        }
+
+      default: // Other errors
+        console.error("⚠️ API Error:", response.status, response.data);
+        break;
     }
 
-    // 🔸 Handle 419 CSRF Token expired → refresh token & retry request
-    if (response.status === 419) {
-      console.warn("CSRF token expired. Refreshing...");
-
-      try {
-        await axios.get("/sanctum/csrf-cookie"); // refresh CSRF
-        return axios.request(error.config); // retry original request
-      } catch (csrfError) {
-        console.error("Failed to refresh CSRF token:", csrfError);
-        return Promise.reject(csrfError);
-      }
-    }
-
-    // 🔸 Other errors → just reject
-    console.error("API Error:", response.status, response.data);
     return Promise.reject(error);
   }
 );
