@@ -1,7 +1,18 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head } from "@inertiajs/react";
 
+import { useEffect } from "react";
+import { router } from "@inertiajs/react";
+import AuthService from "@/Services/AuthService";
+
 export default function ShopDashboard() {
+  useEffect(() => {
+    AuthService.getUser().then((user) => {
+      if (user.role !== "shop") {
+        router.visit(AuthService.getRedirectUrl(user.role));
+      }
+    });
+  }, []);
     return (
         <AuthenticatedLayout
             header={

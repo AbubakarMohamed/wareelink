@@ -11,8 +11,12 @@ class ShopDashboardController extends Controller
      */
     public function index()
     {
-        return Inertia::render('Shop/ShopDashboard', [
-            'title' => 'Shop Dashboard',
-        ]);
+        $user = auth()->user();
+
+        if (!$user || $user->role !== 'shop') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        return Inertia::render('Shop/ShopDashboard');
     }
 }

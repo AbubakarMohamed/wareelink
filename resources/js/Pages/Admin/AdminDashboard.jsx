@@ -1,7 +1,18 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head } from "@inertiajs/react";
 
+import { useEffect } from "react";
+import { router } from "@inertiajs/react";
+import AuthService from "@/Services/AuthService";
+
 export default function AdminDashboard() {
+  useEffect(() => {
+    AuthService.getUser().then((user) => {
+      if (user.role !== "admin") {
+        router.visit(AuthService.getRedirectUrl(user.role));
+      }
+    });
+  }, []);
     return (
         <AuthenticatedLayout
             header={

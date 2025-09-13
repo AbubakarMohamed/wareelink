@@ -3,12 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
     /**
-     * Render the role-specific dashboard.
+     * Main dashboard redirector — sends user to their role's dashboard route.
      */
     public function index()
     {
@@ -18,17 +17,18 @@ class DashboardController extends Controller
             return redirect()->route('login');
         }
 
+        // Redirect based on role
         switch ($user->role) {
             case 'admin':
-                return Inertia::render('Admin/Dashboard'); // Admin dashboard view
+                return redirect()->route('admin.dashboard');
             case 'company':
-                return Inertia::render('Company/Dashboard'); // Company dashboard view
+                return redirect()->route('company.dashboard');
             case 'warehouse_admin':
-                return Inertia::render('Warehouse/Dashboard'); // Warehouse dashboard view
+                return redirect()->route('warehouse.dashboard');
             case 'shop':
-                return Inertia::render('Shop/Dashboard'); // Shop dashboard view
+                return redirect()->route('shop.dashboard');
             default:
-                abort(403, 'Unauthorized.');
+                abort(403, 'Unauthorized role.');
         }
     }
 }

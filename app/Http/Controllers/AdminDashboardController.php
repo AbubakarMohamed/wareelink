@@ -12,8 +12,12 @@ class AdminDashboardController extends Controller
      */
     public function index()
     {
-        return Inertia::render('Admin/AdminDashboard', [
-            'title' => 'Admin Dashboard',
-        ]);
+        $user = auth()->user();
+
+        if (!$user || $user->role !== 'admin') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        return Inertia::render('Admin/AdminDashboard');
     }
 }

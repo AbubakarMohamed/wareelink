@@ -6,35 +6,37 @@ import ApiService from "@/Services/ApiService";
  */
 const AuthService = {
   /**
+   * Map role to correct dashboard URL
+   */
+  getRedirectUrl(role) {
+    switch (role) {
+      case "admin":
+        return "/admin/dashboard";
+      case "company":
+        return "/company/dashboard";
+      case "shop":
+        return "/shop/dashboard";
+      case "warehouse_admin":
+        return "/warehouse/dashboard";
+      default:
+        return "/dashboard";
+    }
+  },
+
+  /**
    * Login user and return user info + role-based redirect URL
    */
   async login(data) {
-    // Perform login and get user + role in one response
     const response = await ApiService.post("/login", data, {
       headers: { Accept: "application/json" },
     });
 
     const user = response.data.user;
 
-    // Determine role-based redirect URL
-    let redirect_url = "/dashboard"; // fallback
-    switch (user.role) {
-      case "admin":
-        redirect_url = "/admin/dashboard";
-        break;
-      case "company":
-        redirect_url = "/company/dashboard";
-        break;
-      case "shop":
-        redirect_url = "/shop/dashboard";
-        break;
-      case "warehouse_admin":
-        redirect_url = "/warehouse/dashboard";
-        break;
-    }
-
-    // Return user info and redirect URL to frontend
-    return { user, redirect_url };
+    return {
+      user,
+      redirect_url: this.getRedirectUrl(user.role),
+    };
   },
 
   /**
@@ -48,25 +50,11 @@ const AuthService = {
     if (response.data.user) {
       const user = response.data.user;
 
-      // Determine role-based redirect URL
-      let redirect_url = "/dashboard"; // fallback
-      switch (user.role) {
-        case "admin":
-          redirect_url = "/admin/dashboard";
-          break;
-        case "company":
-          redirect_url = "/company/dashboard";
-          break;
-        case "shop":
-          redirect_url = "/shop/dashboard";
-          break;
-        case "warehouse_admin":
-          redirect_url = "/warehouse/dashboard";
-          break;
-      }
-
-      // Return user and redirect info to frontend
-      return { user, redirect_url, response };
+      return {
+        user,
+        redirect_url: this.getRedirectUrl(user.role),
+        response,
+      };
     }
 
     return response;
@@ -80,7 +68,6 @@ const AuthService = {
       headers: { Accept: "application/json" },
     });
 
-    // Return redirect URL so frontend can navigate
     return { redirect_url: "/login" };
   },
 
