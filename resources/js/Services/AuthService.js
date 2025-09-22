@@ -2,29 +2,48 @@ import ApiService from "@/Services/ApiService";
 
 /**
  * AuthService handles login, registration, logout, and user fetch
- * Returns role-based redirect URLs to let frontend handle routing
+ * Returns role-based redirect URLs and allowed paths
  */
 const AuthService = {
   /**
-   * Map role to correct dashboard URL
+   * Map role to default dashboard + allowed paths
    */
-  getRedirectUrl(role) {
+  getRoleConfig(role) {
     switch (role) {
       case "admin":
-        return "/admin/dashboard";
+        return {
+          redirect: "/admin/dashboard",
+          allowed: ["/admin/dashboard"],
+        };
       case "company":
-        return "/company/dashboard";
+        return {
+          redirect: "/company/dashboard",
+          allowed: [
+            "/company/dashboard",
+            "/company/products",
+            "/company/products/create",
+          ],
+        };
       case "shop":
-        return "/shop/dashboard";
+        return {
+          redirect: "/shop/dashboard",
+          allowed: ["/shop/dashboard"],
+        };
       case "warehouse_admin":
-        return "/warehouse/dashboard";
+        return {
+          redirect: "/warehouse/dashboard",
+          allowed: ["/warehouse/dashboard"],
+        };
       default:
-        return "/dashboard";
+        return {
+          redirect: "/dashboard",
+          allowed: ["/dashboard"],
+        };
     }
   },
 
   /**
-   * Login user and return user info + role-based redirect URL
+   * Login user and return user info + role config
    */
   async login(data) {
     const response = await ApiService.post("/login", data, {
@@ -32,15 +51,17 @@ const AuthService = {
     });
 
     const user = response.data.user;
+    const roleConfig = this.getRoleConfig(user.role);
 
     return {
       user,
-      redirect_url: this.getRedirectUrl(user.role),
+      redirect_url: roleConfig.redirect,
+      allowed_paths: roleConfig.allowed,
     };
   },
 
   /**
-   * Register user and return user info + role-based redirect URL
+   * Register user and return user info + role config
    */
   async register(data) {
     const response = await ApiService.post("/register", data, {
@@ -49,10 +70,12 @@ const AuthService = {
 
     if (response.data.user) {
       const user = response.data.user;
+      const roleConfig = this.getRoleConfig(user.role);
 
       return {
         user,
-        redirect_url: this.getRedirectUrl(user.role),
+        redirect_url: roleConfig.redirect,
+        allowed_paths: roleConfig.allowed,
         response,
       };
     }

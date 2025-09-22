@@ -12,6 +12,7 @@ import {
     CubeIcon,
     UserGroupIcon,
     Cog6ToothIcon,
+    PlusIcon,
     ChevronDownIcon,
     ChevronRightIcon,
 } from "@heroicons/react/24/outline";
@@ -19,8 +20,6 @@ import {
 export default function AuthenticatedLayout({ header, children }) {
     const user = usePage().props.auth?.user;
     const [showSidebar, setShowSidebar] = useState(true);
-
-    // Track which sections are open
     const [openSections, setOpenSections] = useState({});
 
     const toggleSection = (heading) => {
@@ -30,7 +29,6 @@ export default function AuthenticatedLayout({ header, children }) {
         }));
     };
 
-    // Role-based sidebar menus grouped into sections
     const menuItems = {
         admin: [
             {
@@ -49,19 +47,47 @@ export default function AuthenticatedLayout({ header, children }) {
         company: [
             {
                 heading: "General",
-                items: [{ label: "Dashboard", route: "company.dashboard", icon: HomeIcon }],
+                items: [
+                    { label: "Dashboard", route: "company.dashboard", icon: HomeIcon },
+                ],
             },
             {
                 heading: "Products",
-                items: [{ label: "All Products", route: "products.index", icon: CubeIcon }],
+                items: [
+                    { label: "Manage Products", route: "company.products.index", icon: CubeIcon },
+                    
+                ],
             },
             {
                 heading: "Warehouses",
                 items: [
-                    { label: "Manage Warehouses", route: "warehouses.index", icon: BuildingOfficeIcon },
+                    { label: "Manage Warehouses", route: "company.warehouses.index", icon: BuildingOfficeIcon },
+                 
+                ],
+            },
+            {
+                heading: "Stocks",
+                items: [
+                    { label: "Manage Stocks", route: "company.warehouse-stocks.index", icon: CubeIcon },
+                    
+                ],
+            },
+            {
+                heading: "Admins",
+                items: [
+                    
+                    { label: "Warehouse Admins", route: "company.warehouse-admins.index", icon: UserGroupIcon },
+                ],
+            },
+            {
+                heading: "Reports",
+                items: [
+                    // Update route if actual route is different or doesn't exist
+                    { label: "Stock Reports", route: "#", icon: Cog6ToothIcon },
                 ],
             },
         ],
+        
         warehouse_admin: [
             {
                 heading: "General",
@@ -89,12 +115,10 @@ export default function AuthenticatedLayout({ header, children }) {
     const currentMenu = menuItems[user?.role] || [];
 
     return (
-        <div className="min-h-screen bg-gray-100 flex">
+        <div className="h-screen bg-gray-100 flex">
             {/* Sidebar */}
             <aside
-                className={`${
-                    showSidebar ? "w-64" : "w-16"
-                } bg-white border-r transition-all duration-200`}
+                className={`${showSidebar ? "w-64" : "w-16"} bg-white border-r transition-all duration-200`}
             >
                 <div className="flex items-center justify-between p-4">
                     <Link href={route("dashboard")}>
@@ -111,10 +135,9 @@ export default function AuthenticatedLayout({ header, children }) {
                 {/* Sidebar Sections */}
                 <nav className="mt-6 space-y-2">
                     {currentMenu.map((section) => {
-                        const isOpen = openSections[section.heading] ?? true; // default open
+                        const isOpen = openSections[section.heading] ?? true;
                         return (
                             <div key={section.heading}>
-                                {/* Section Heading */}
                                 <button
                                     onClick={() => toggleSection(section.heading)}
                                     className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700"
@@ -129,7 +152,6 @@ export default function AuthenticatedLayout({ header, children }) {
                                     )}
                                 </button>
 
-                                {/* Section Items */}
                                 {isOpen && (
                                     <div className="space-y-1">
                                         {section.items.map((item) => (
@@ -152,16 +174,14 @@ export default function AuthenticatedLayout({ header, children }) {
             </aside>
 
             {/* Main Content */}
-            <div className="flex flex-1 flex-col">
+            <div className="flex flex-1 flex-col min-h-0">
                 {/* Top Bar */}
-                <nav className="border-b border-gray-100 bg-white px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-                    {/* Page Header */}
+                <nav className="border-b border-gray-100 bg-white px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16 flex-shrink-0">
                     {header && (
                         <h2 className="text-lg font-semibold text-gray-800">
                             {header}
                         </h2>
                     )}
-                    {/* User Dropdown */}
                     <Dropdown>
                         <Dropdown.Trigger>
                             <span className="inline-flex rounded-md">
@@ -187,9 +207,7 @@ export default function AuthenticatedLayout({ header, children }) {
                         </Dropdown.Trigger>
 
                         <Dropdown.Content>
-                            <Dropdown.Link href={route("profile.edit")}>
-                                Profile
-                            </Dropdown.Link>
+                            <Dropdown.Link href={route("profile.edit")}>Profile</Dropdown.Link>
                             <Dropdown.Link
                                 href={route("logout")}
                                 method="post"
@@ -201,8 +219,10 @@ export default function AuthenticatedLayout({ header, children }) {
                     </Dropdown>
                 </nav>
 
-                {/* Page Content */}
-                <main className="p-6">{children}</main>
+                {/* Scrollable Page Content */}
+                <main className="flex-1 overflow-y-auto p-6">
+                    {children}
+                </main>
             </div>
         </div>
     );

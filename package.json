@@ -23,6 +23,15 @@
         "vite": "^7.0.4"
     },
     "dependencies": {
-        "@heroicons/react": "^2.2.0"
+        "@heroicons/react": "^2.2.0",
+        "@inertiajs/inertia": "^0.11.1",
+        "@inertiajs/inertia-react": "^0.8.1",
+        "@tanstack/react-table": "^8.21.3",
+        "jspdf": "^3.0.3",
+        "jspdf-autotable": "^5.0.2",
+        "lucide-react": "^0.544.0",
+        "react-hot-toast": "^2.6.0",
+        "react-select": "^5.10.2",
+        "xlsx": "^0.18.5"
     }
 }

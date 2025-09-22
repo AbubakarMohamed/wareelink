@@ -34,20 +34,16 @@ class RegisteredUserController extends Controller
             'role'     => 'nullable|string|in:shop,company,warehouse_admin,admin',
         ]);
 
-        // ✅ Default role assignment
+        // ✅ Default role assignment (fallback = shop)
         $role = $request->role ?? 'shop';
 
         // ✅ Only companies can create warehouse admins
-        if ($role === 'warehouse_admin' && !Auth::check()) {
-            return response()->json([
-                'message' => 'Unauthorized to create warehouse admin'
-            ], 403);
-        }
-
-        if ($role === 'warehouse_admin' && Auth::user()->role !== 'company') {
-            return response()->json([
-                'message' => 'Only companies can create warehouse admins'
-            ], 403);
+        if ($role === 'warehouse_admin') {
+            if (!Auth::check() || Auth::user()->role !== 'company') {
+                return response()->json([
+                    'message' => 'Only authenticated companies can create warehouse admins'
+                ], 403);
+            }
         }
 
         // ✅ Create user
@@ -60,32 +56,31 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        // 👤 Auto login for normal registration (not for warehouse admins)
+        // 👤 Auto login for normal registration (not warehouse_admin)
         if ($role !== 'warehouse_admin') {
             Auth::login($user);
         }
 
-        // ✅ JSON response for Axios
+        // ✅ Decide redirect based on role
+        $redirects = [
+            'shop'            => route('shop.dashboard'),
+            'company'         => route('company.dashboard'),
+            'admin'           => route('admin.dashboard'),
+            'warehouse_admin' => route('warehouse.dashboard'),
+        ];
+
+        $redirectUrl = $redirects[$role] ?? route('dashboard');
+
+        // ✅ JSON response for API/Axios requests
         if ($request->wantsJson()) {
             return response()->json([
                 'message'      => 'Registration successful',
                 'user'         => $user,
-                'redirect_url' => route('dashboard'),
+                'redirect_url' => $redirectUrl,
             ]);
         }
 
-        // ✅ Redirect based on role
-        switch ($role) {
-            case 'shop':
-                return redirect()->route('shop.dashboard');
-            case 'company':
-                return redirect()->route('company.dashboard');
-            case 'admin':
-                return redirect()->route('admin.dashboard');
-            case 'warehouse_admin':
-                return redirect()->route('warehouse.dashboard');
-            default:
-                return redirect()->route('dashboard');
-        }
+        // ✅ Default redirect
+        return redirect()->to($redirectUrl);
     }
 }

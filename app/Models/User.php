@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /*
     |--------------------------------------------------------------------------
@@ -29,7 +30,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',   // ✅ added role
+        'role',
     ];
 
     /**
@@ -43,7 +44,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
      * @return array<string, string>
      */
@@ -57,26 +58,73 @@ class User extends Authenticatable
 
     /*
     |--------------------------------------------------------------------------
-    | Helper methods for roles
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
+    // Company profile (one-to-one)
+    public function company()
+    {
+        return $this->hasOne(Company::class, 'user_id');
+    }
+
+    // WarehouseAdmin profile (one-to-one)
+    public function warehouseAdmin()
+    {
+        return $this->hasOne(WarehouseAdmin::class, 'user_id');
+    }
+
+    // Shops: stock requests they’ve made
+    public function stockRequests()
+    {
+        return $this->hasMany(StockRequest::class, 'shop_id');
+    }
+
+    // Companies: products they own
+    public function products()
+    {
+        return $this->hasMany(Product::class, 'company_id');
+    }
+
+    // Companies: warehouses they created
+    public function warehouses()
+    {
+        return $this->hasMany(Warehouse::class, 'company_id');
+    }
+
+    // Warehouse admins: warehouses they manage (many-to-many through profile)
+    public function managedWarehouses()
+    {
+        return $this->belongsToMany(
+            Warehouse::class,
+            'warehouse_admin_warehouse', // pivot table
+            'warehouse_admin_id',        // foreign key on pivot (profile id)
+            'warehouse_id'               // related warehouse key
+        )->withTimestamps();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Role helper methods (wrap Spatie hasRole())
     |--------------------------------------------------------------------------
     */
     public function isShop(): bool
     {
-        return $this->role === self::ROLE_SHOP;
+        return $this->hasRole(self::ROLE_SHOP);
     }
 
     public function isCompany(): bool
     {
-        return $this->role === self::ROLE_COMPANY;
+        return $this->hasRole(self::ROLE_COMPANY);
     }
 
     public function isWarehouseAdmin(): bool
     {
-        return $this->role === self::ROLE_WAREHOUSE_ADMIN;
+        return $this->hasRole(self::ROLE_WAREHOUSE_ADMIN);
     }
 
     public function isAdmin(): bool
     {
-        return $this->role === self::ROLE_ADMIN;
+        return $this->hasRole(self::ROLE_ADMIN);
     }
 }
