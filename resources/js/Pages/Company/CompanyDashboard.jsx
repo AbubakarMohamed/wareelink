@@ -116,7 +116,7 @@ export default function CompanyDashboard() {
                                 Manage Warehouses
                             </button>
                             <button
-                                onClick={() => router.visit(route("company.warehouse-stocks.index"))}
+                                onClick={() => router.visit(route("warehousestocks.index"))}
                                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
                             >
                                 Manage Stocks

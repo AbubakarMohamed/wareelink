@@ -115,14 +115,32 @@ export default function Index({ stocks, warehouses, products, auth }) {
 
     const filteredStocks = useMemo(() => {
         return stocks.filter((s) => {
+            // Normalize text
+            const searchLower = search.toLowerCase();
+            const warehouseFilterLower = warehouseFilter.toString().toLowerCase();
+            const productFilterLower = productFilter.toString().toLowerCase();
+    
+            // Search matches warehouse name OR product name
             const matchesSearch =
-                s.warehouse.name.toLowerCase().includes(search.toLowerCase()) ||
-                s.product.name.toLowerCase().includes(search.toLowerCase());
-            const matchesWarehouse = warehouseFilter === "all" ? true : s.warehouse_id === warehouseFilter;
-            const matchesProduct = productFilter === "all" ? true : s.product_id === productFilter;
+                s.warehouse.name.toLowerCase().includes(searchLower) ||
+                s.product.name.toLowerCase().includes(searchLower);
+    
+            // Warehouse filter
+            const matchesWarehouse =
+                warehouseFilterLower === "all"
+                    ? true
+                    : s.warehouse_id.toString().toLowerCase() === warehouseFilterLower;
+    
+            // Product filter
+            const matchesProduct =
+                productFilterLower === "all"
+                    ? true
+                    : s.product_id.toString().toLowerCase() === productFilterLower;
+    
             return matchesSearch && matchesWarehouse && matchesProduct;
         });
     }, [stocks, search, warehouseFilter, productFilter]);
+    
 
     const sortedStocks = useMemo(() => {
         let sortable = [...filteredStocks];

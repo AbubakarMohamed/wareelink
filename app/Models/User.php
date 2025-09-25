@@ -19,6 +19,7 @@ class User extends Authenticatable
     public const ROLE_SHOP            = 'shop';
     public const ROLE_COMPANY         = 'company';
     public const ROLE_WAREHOUSE_ADMIN = 'warehouse_admin';
+    public const ROLE_DELIVERY_PERSON = 'delivery_person';
     public const ROLE_ADMIN           = 'admin';
 
     /**
@@ -67,6 +68,13 @@ class User extends Authenticatable
     {
         return $this->hasOne(Company::class, 'user_id');
     }
+
+    // Delivery person profile (one-to-one)
+public function deliveryPerson()
+{
+    return $this->hasOne(DeliveryPerson::class, 'user_id');
+}
+
 
     // WarehouseAdmin profile (one-to-one)
     public function warehouseAdmin()
@@ -117,6 +125,12 @@ class User extends Authenticatable
     {
         return $this->hasRole(self::ROLE_COMPANY);
     }
+
+    public function isDeliveryPerson(): bool
+{
+    return $this->hasRole(self::ROLE_DELIVERY_PERSON);
+}
+
 
     public function isWarehouseAdmin(): bool
     {

@@ -15,7 +15,7 @@ class WarehouseAdmin extends Model
         'phone',
         'status',
         'company_id',
-        'warehouse_id'
+        'warehouse_id',
     ];
 
     /*

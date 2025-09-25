@@ -15,6 +15,9 @@ import {
     PlusIcon,
     ChevronDownIcon,
     ChevronRightIcon,
+    ClipboardDocumentListIcon,
+    DocumentTextIcon,
+    TruckIcon,
 } from "@heroicons/react/24/outline";
 
 export default function AuthenticatedLayout({ header, children }) {
@@ -68,7 +71,7 @@ export default function AuthenticatedLayout({ header, children }) {
             {
                 heading: "Stocks",
                 items: [
-                    { label: "Manage Stocks", route: "company.warehouse-stocks.index", icon: CubeIcon },
+                    { label: "Manage Stocks", route: "warehousestocks.index", icon: CubeIcon },
                     
                 ],
             },
@@ -82,8 +85,8 @@ export default function AuthenticatedLayout({ header, children }) {
             {
                 heading: "Reports",
                 items: [
-                    // Update route if actual route is different or doesn't exist
-                    { label: "Stock Reports", route: "#", icon: Cog6ToothIcon },
+                    
+                    { label: "Stock Reports", route: "company.stock-report.index", icon: Cog6ToothIcon },
                 ],
             },
         ],
@@ -95,7 +98,23 @@ export default function AuthenticatedLayout({ header, children }) {
             },
             {
                 heading: "Inventory",
-                items: [{ label: "Stock Management", route: "stock.index", icon: CubeIcon }],
+                items: [{ label: "Stock Management", route: "warehouse.inventory.index", icon: CubeIcon }],
+            },
+            {
+                heading: "Requests",
+                items: [{ label: "Shop Requests", route: "warehouse.requests.index", icon: ClipboardDocumentListIcon }],
+            },
+            {
+                heading: "Finance",
+                items: [{ label: "Invoices", route: "warehouse.invoices.index", icon: DocumentTextIcon }],
+            },
+            // {
+            //     heading: "Logistics",
+            //     items: [{ label: "Shipping", route: "stock.index", icon: TruckIcon }],
+            // },
+            {
+                heading: "Reports",
+                items: [{ label: "Reports", route: "warehouse.warehouse.report", icon: Cog6ToothIcon }],
             },
         ],
         shop: [
@@ -104,11 +123,31 @@ export default function AuthenticatedLayout({ header, children }) {
                 items: [{ label: "Dashboard", route: "shop.dashboard", icon: HomeIcon }],
             },
             {
-                heading: "Operations",
-                items: [
-                    { label: "Request Products", route: "requests.index", icon: BuildingStorefrontIcon },
-                ],
+                heading: "Products",
+                items: [{ label: "Request Products", route: "shop.inventory.index", icon: CubeIcon }],
             },
+            {
+                heading: "Requests",
+                items: [{ label: "My Requests", route: "shop.requests.index", icon: ClipboardDocumentListIcon }],
+            },
+            {
+                heading: "Finance",
+                items: [{ label: "Invoices", route: "shop.invoices.index", icon: DocumentTextIcon }],
+            },
+            // {
+            //     heading: "Logistics",
+            //     items: [{ label: "Shipping", route: "stock.index", icon: TruckIcon }],
+            // },
+            {
+                heading: "Reports",
+                items: [{ label: "Reports", route: "shop.purchase-history", icon: Cog6ToothIcon }],
+            },
+            // {
+            //     heading: "Operations",
+            //     items: [
+            //         { label: "Request Products", route: "requests.index", icon: BuildingStorefrontIcon },
+            //     ],
+            // },
         ],
     };
 

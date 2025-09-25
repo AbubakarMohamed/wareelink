@@ -52,6 +52,11 @@ class Company extends Model
         return $this->hasMany(WarehouseAdmin::class);
     }
 
+    public function DeliveryPerson()
+    {
+        return $this->hasMany(DeliveryPerson::class);
+    }
+
     /**
      * Stock requests made through company warehouses.
      */

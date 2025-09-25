@@ -1,73 +1,243 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head } from "@inertiajs/react";
+import { Head, router, usePage } from "@inertiajs/react";
 import { useEffect } from "react";
-import { router } from "@inertiajs/react";
 import AuthService from "@/Services/AuthService";
-import React from 'react';
 
-export default function WarehouseDashboard({ warehouse }) {
-  useEffect(() => {
-    AuthService.getUser().then((user) => {
-      if (user.role !== "warehouse_admin") {
-        router.visit(AuthService.getRedirectUrl(user.role));
-      }
-    });
-  }, []);
+// ✅ Heroicons
+import {
+    CubeIcon,
+    ArchiveBoxIcon,
+    ChartBarIcon,
+} from "@heroicons/react/24/outline";
 
-  return (
-    <AuthenticatedLayout
-      header={
-        <h2 className="text-xl font-semibold leading-tight text-gray-800">
-          Warehouse Admin Dashboard
-        </h2>
-      }
-    >
-      <Head title="Warehouse Admin Dashboard" />
+// ✅ Recharts for Pie Chart
+import {
+    PieChart,
+    Pie,
+    Cell,
+    Legend,
+    Tooltip,
+    ResponsiveContainer,
+} from "recharts";
 
-      <div className="py-12">
-        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg p-6 text-gray-900">
-            🎉 Welcome to your <strong>Warehouse Admin Dashboard</strong>!  
-            Here you can manage inventory, shipments, and warehouse operations.
-          </div>
+export default function WarehouseDashboard() {
+    const { warehouse, stats, recentActivity, auth } = usePage().props;
 
-          {/* ✅ Warehouse Details */}
-          {warehouse && (
-            <div className="mt-6 bg-white shadow rounded-lg p-6">
-              <h1 className="text-2xl font-semibold">Warehouse: {warehouse.name}</h1>
-              <p className="mt-1">Location: {warehouse.location}</p>
-              <p>Capacity: {warehouse.capacity}</p>
+    useEffect(() => {
+        AuthService.getUser().then((user) => {
+            if (user.role !== "warehouse_admin") {
+                router.visit(AuthService.getRedirectUrl(user.role));
+            }
+        });
+    }, []);
 
-              <h2 className="mt-4 text-xl font-semibold">Stocks</h2>
+    // ✅ Utility to style activity type
+    const actionBadge = (action) => {
+        const base = "px-2 py-1 text-xs rounded-full font-medium";
+        switch (action) {
+            case "created":
+                return `${base} bg-green-100 text-green-700`;
+            case "updated":
+                return `${base} bg-blue-100 text-blue-700`;
+            case "deleted":
+                return `${base} bg-red-100 text-red-700`;
+            default:
+                return `${base} bg-gray-100 text-gray-700`;
+        }
+    };
 
-              {warehouse.stocks.length > 0 ? (
-                <div className="mt-2 overflow-x-auto">
-                  <table className="min-w-full border border-gray-200">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-4 py-2 border">#</th>
-                        <th className="px-4 py-2 border">Product</th>
-                        <th className="px-4 py-2 border">Quantity</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {warehouse.stocks.map((stock, index) => (
-                        <tr key={stock.id} className="text-gray-700">
-                          <td className="px-4 py-2 border">{index + 1}</td>
-                          <td className="px-4 py-2 border">{stock.product_name}</td>
-                          <td className="px-4 py-2 border">{stock.quantity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+    // ✅ Pie Chart Data
+    const spaceUsed = stats?.stocks ?? 0;
+    const spaceRemaining = Math.max((warehouse?.capacity ?? 0) - spaceUsed, 0);
+    const pieData = [
+        { name: "Space Used", value: spaceUsed },
+        { name: "Space Remaining", value: spaceRemaining },
+    ];
+    const COLORS = ["#6366f1", "#10b981"]; // Indigo & Green
+
+    return (
+        <AuthenticatedLayout
+            header={
+                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                    Warehouse Admin Dashboard
+                </h2>
+            }
+        >
+            <Head title="Warehouse Admin Dashboard" />
+
+            <div className="py-10">
+                <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-8">
+                    {/* ✅ Welcome Banner */}
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+                        <h3 className="text-lg font-medium text-gray-900">
+                            🎉 Welcome back, {auth?.user?.name || "Warehouse Admin"}!
+                        </h3>
+                        {warehouse ? (
+                            <p className="mt-2 text-gray-600">
+                                You are managing <strong>{warehouse.name}</strong> located
+                                at <strong>{warehouse.location}</strong>. Keep track of{" "}
+                                <strong>products</strong> and{" "}
+                                <strong>stock levels</strong> efficiently.
+                            </p>
+                        ) : (
+                            <p className="mt-2 text-gray-600">
+                                No warehouse has been assigned to you yet.
+                            </p>
+                        )}
+                    </div>
+
+                    {/* ✅ KPI Cards */}
+                    {warehouse && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Products */}
+                            <div className="bg-white shadow rounded-lg p-6 flex items-center space-x-4">
+                                <CubeIcon className="h-10 w-10 text-indigo-500" />
+                                <div>
+                                    <p className="text-sm text-gray-500">Total Products</p>
+                                    <p className="text-2xl font-bold text-gray-800">
+                                        {stats?.products ?? 0}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Stock Quantity */}
+                            <div className="bg-white shadow rounded-lg p-6 flex items-center space-x-4">
+                                <ArchiveBoxIcon className="h-10 w-10 text-green-500" />
+                                <div>
+                                    <p className="text-sm text-gray-500">Total Stock</p>
+                                    <p className="text-2xl font-bold text-gray-800">
+                                        {stats?.stocks ?? 0}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ✅ Pie Chart - Space Usage */}
+                    {warehouse && (
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <h4 className="text-lg font-semibold text-gray-800 mb-4">
+                                Warehouse Space Usage
+                            </h4>
+                            <div className="h-64">
+                                <ResponsiveContainer>
+                                    <PieChart>
+                                        <Pie
+                                            data={pieData}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            outerRadius={100}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                            label={({ name, value }) =>
+                                                `${name}: ${value}`
+                                            }
+                                        >
+                                            {pieData.map((entry, index) => (
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={COLORS[index % COLORS.length]}
+                                                />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ✅ Quick Actions */}
+                    {warehouse && (
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <h4 className="text-lg font-semibold text-gray-800 mb-4">
+                                Quick Actions
+                            </h4>
+                            <div className="flex flex-wrap gap-4">
+                                <button
+                                    onClick={() =>
+                                        router.visit(
+                                            route("warehouse.inventory.index", warehouse.id)
+                                        )
+                                    }
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                                >
+                                    Manage Stocks
+                                </button>
+                                <button
+                                    onClick={() =>
+                                        router.visit(
+                                            route("warehouse.requests.index", warehouse.id)
+                                        )
+                                    }
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                >
+                                    Manage Requests
+                                </button>
+                                
+                                <button
+                                    onClick={() =>
+                                        router.visit(
+                                            route("warehouse.invoices.index", warehouse.id)
+                                        )
+                                    }
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Manage Invoices
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ✅ Recent Activity */}
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-800 mb-4">
+                            Recent Activity
+                        </h4>
+                        {recentActivity && recentActivity.length > 0 ? (
+                            <ul className="divide-y divide-gray-100">
+                                {recentActivity.map((activity, index) => (
+                                    <li
+                                        key={index}
+                                        className="py-3 flex justify-between items-center text-sm"
+                                    >
+                                        <div className="flex items-center space-x-3">
+                                            <span className={actionBadge(activity.action)}>
+                                                {activity.action}
+                                            </span>
+                                            <span className="text-gray-800">
+                                                {activity.description}
+                                            </span>
+                                        </div>
+                                        <span className="text-gray-500 text-xs">
+                                            {new Date(
+                                                activity.created_at
+                                            ).toLocaleString()}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-gray-500 text-sm">No recent activity.</p>
+                        )}
+                    </div>
+
+                    {/* ✅ Analytics (Placeholder) */}
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-800 mb-4">
+                            Analytics Overview
+                        </h4>
+                        <div className="flex items-center space-x-4">
+                            <ChartBarIcon className="h-10 w-10 text-blue-600" />
+                            <p className="text-gray-600">
+                                Inventory and warehouse performance charts will appear here.
+                            </p>
+                        </div>
+                    </div>
                 </div>
-              ) : (
-                <p className="mt-2 text-gray-500">No stocks available in this warehouse yet.</p>
-              )}
             </div>
-          )}
-        </div>
-      </div>
-    </AuthenticatedLayout>
-  );
+        </AuthenticatedLayout>
+    );
 }

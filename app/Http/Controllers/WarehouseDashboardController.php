@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
+// use App\Models\ActivityLog;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Warehouse;
 
 class WarehouseDashboardController extends Controller
 {
@@ -16,11 +16,31 @@ class WarehouseDashboardController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        // Get the warehouse(s) this admin belongs to
-        $warehouse = $user->warehouseAdmin?->warehouses()->with('stocks.product')->first();
+        $warehouseAdmin = $user->warehouseAdmin;
+        if (!$warehouseAdmin || !$warehouseAdmin->warehouse) {
+            abort(404, 'No warehouse assigned.');
+        }
 
-        return Inertia::render('Warehouse/WarehouseDashboard', [
-            'warehouse' => $warehouse
+        $warehouse = $warehouseAdmin->warehouse()->with(['stocks.product'])->first();
+
+        // ✅ Count products & total stock
+        $productCount = $warehouse->stocks->count();
+        $stockTotal   = $warehouse->stocks->sum('quantity');
+
+        // ✅ Recent activity
+        // $recentActivity = ActivityLog::where('warehouse_id', $warehouse->id)
+        //     ->latest()
+        //     ->take(10)
+        //     ->get();
+
+        return Inertia::render("Warehouse/WarehouseDashboard", [
+            "warehouse"      => $warehouse,
+            "stats"          => [
+                "products" => $productCount,
+                "stocks"   => $stockTotal,
+            ],
+            // "recentActivity" => $recentActivity,
+            "auth"           => ["user" => $user],
         ]);
     }
 }

@@ -14,6 +14,7 @@ class WarehouseStock extends Model
         'warehouse_id',
         'product_id',
         'quantity',
+        'visible_to_shop',
     ];
 
     /*
