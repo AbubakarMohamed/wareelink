@@ -7,44 +7,47 @@ export default function RequestsIndex() {
     const [requests, setRequests] = useState(initialRequests);
 
     const handleAction = (id, action) => {
-        if (confirm(`Are you sure you want to ${action} this request?`)) {
-            router.put(
-                route(`warehouse.requests.${action}`, id),
-                {},
-                {
-                    onSuccess: () => {
-                        alert(`Request ${action}ed successfully!`);
-                        setRequests((prev) =>
-                            prev.map((req) =>
-                                req.id === id
-                                    ? { ...req, status: action === "approve" ? "approved" : "rejected" }
-                                    : req
-                            )
-                        );
-                    },
-                }
-            );
-        }
+        if (!confirm(`Are you sure you want to ${action} this request?`)) return;
+
+        router.put(
+            route(`warehouse.requests.${action}`, id),
+            {},
+            {
+                onSuccess: () => {
+                    setRequests((prev) =>
+                        prev.map((req) =>
+                            req.id === id
+                                ? { ...req, status: action === "approve" ? "approved" : "rejected" }
+                                : req
+                        )
+                    );
+                },
+                onError: (errors) => {
+                    alert(errors?.message || "Something went wrong");
+                },
+            }
+        );
     };
 
     const handleInvoice = (id) => {
-        if (confirm("Do you want to create an invoice for this request?")) {
-            router.post(
-                route("warehouse.invoices.store"),
-                { request_id: id },
-                {
-                    onSuccess: () => {
-                        alert("Invoice created successfully!");
-                        // Update the request status locally
-                        setRequests((prev) =>
-                            prev.map((req) =>
-                                req.id === id ? { ...req, status: "invoiced" } : req
-                            )
-                        );
-                    },
-                }
-            );
-        }
+        if (!confirm("Do you want to create an invoice for this request?")) return;
+
+        router.post(
+            route("warehouse.invoices.store"),
+            { request_id: id },
+            {
+                onSuccess: () => {
+                    setRequests((prev) =>
+                        prev.map((req) =>
+                            req.id === id ? { ...req, status: "invoiced" } : req
+                        )
+                    );
+                },
+                onError: (errors) => {
+                    alert(errors?.message || "Failed to create invoice");
+                },
+            }
+        );
     };
 
     return (
@@ -86,6 +89,7 @@ export default function RequestsIndex() {
                                     <td className="px-4 py-2 border">{req.quantity}</td>
                                     <td className="px-4 py-2 border capitalize">{req.status}</td>
                                     <td className="px-4 py-2 border text-center">
+                                        {/* Approve/Reject Buttons */}
                                         {req.status === "pending" && (
                                             <>
                                                 <button
@@ -103,6 +107,7 @@ export default function RequestsIndex() {
                                             </>
                                         )}
 
+                                        {/* Create Invoice Button */}
                                         {(req.status === "approved" || req.status === "invoiced") && (
                                             <button
                                                 onClick={() => handleInvoice(req.id)}

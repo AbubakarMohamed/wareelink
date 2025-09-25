@@ -54,6 +54,9 @@ class InvoiceController extends Controller
         'status'       => 'unpaid',
     ]);
 
+
+    $shopRequest->update(['status' => 'invoiced']);
+
     return back()->with('success', 'Invoice created successfully.');
 }
 

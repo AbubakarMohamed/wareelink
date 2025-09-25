@@ -40,7 +40,7 @@ export default function AuthenticatedLayout({ header, children }) {
             },
             {
                 heading: "Management",
-                items: [{ label: "Users", route: "users.index", icon: UserGroupIcon }],
+                items: [{ label: "Users", route: "admin.users.index", icon: UserGroupIcon }],
             },
             {
                 heading: "System",

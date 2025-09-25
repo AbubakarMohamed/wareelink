@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request; // ✅ Laravel HTTP Request
-use App\Models\Request as ShopRequest; // ✅ Alias your model
+use Illuminate\Http\Request; 
+use App\Models\Request as ShopRequest; 
 use App\Models\WarehouseStock;
 use Inertia\Inertia;
 
@@ -12,7 +12,7 @@ class ShopRequestController extends Controller
 {
     public function index()
     {
-        $shopId = auth()->user()->id; // or shop_id if you have shop relation
+        $shopId = auth()->user()->id; 
 
         $requests = ShopRequest::with(['stock.product', 'stock.warehouse.company'])
             ->where('shop_id', $shopId)
@@ -41,11 +41,28 @@ class ShopRequestController extends Controller
 
         ShopRequest::create([
             'warehouse_stock_id' => $stock->id,
-            'shop_id'            => auth()->user()->id, // or ->shop->id if relation exists
+            'shop_id'            => auth()->user()->id,
             'quantity'           => $request->quantity,
             'status'             => 'pending',
         ]);
 
         return back()->with('success', 'Request submitted successfully!');
     }
+
+    public function cancel($id)
+{
+    $shopId = auth()->id();
+
+    $request = ShopRequest::where('id', $id)
+        ->where('shop_id', $shopId)
+        ->where('status', 'pending') // only allow cancelling pending
+        ->firstOrFail();
+
+    $request->update([
+        'status' => 'cancelled', // <-- must be a string
+    ]);
+
+    return back()->with('success', 'Request cancelled successfully.');
+}
+
 }

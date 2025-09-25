@@ -1,8 +1,14 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head, usePage } from "@inertiajs/react";
+import { Head, usePage, router } from "@inertiajs/react";
 
 export default function Index() {
     const { requests, auth, flash } = usePage().props;
+
+    const handleCancel = (id) => {
+        if (confirm("Are you sure you want to cancel this request?")) {
+            router.post(`/shop/requests/${id}/cancel`);
+        }
+    };
 
     return (
         <AuthenticatedLayout user={auth.user}>
@@ -31,6 +37,7 @@ export default function Index() {
                             <th className="px-4 py-2 border">Quantity</th>
                             <th className="px-4 py-2 border">Status</th>
                             <th className="px-4 py-2 border">Requested At</th>
+                            <th className="px-4 py-2 border">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -57,16 +64,35 @@ export default function Index() {
                                         {req.status === "rejected" && (
                                             <span className="text-red-600 font-semibold">Rejected</span>
                                         )}
+                                        {req.status === "cancelled" && (
+                                            <span className="text-gray-600 font-semibold">Cancelled</span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-2 border">
                                         {new Date(req.created_at).toLocaleString()}
+                                    </td>
+                                    <td className="px-4 py-2 border text-center">
+                                        {req.status === "pending" ? (
+                                            <button
+                                                onClick={() => handleCancel(req.id)}
+                                                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+                                            >
+                                                Cancel
+                                            </button>
+                                        ) : req.status === "cancelled" ? (
+                                            <span className="bg-gray-200 text-gray-600 px-3 py-1 rounded cursor-not-allowed">
+                                                Cancelled
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">—</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
                                 <td
-                                    colSpan="6"
+                                    colSpan="7"
                                     className="px-4 py-2 border text-center text-gray-500"
                                 >
                                     You haven’t submitted any requests yet.

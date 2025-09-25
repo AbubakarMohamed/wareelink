@@ -12,6 +12,10 @@ use App\Http\Controllers\Company\WarehouseStockController;
 use App\Http\Controllers\Warehouse\InvoiceController;
 use App\Http\Controllers\Warehouse\ShipmentController;
 use App\Http\Controllers\Warehouse\WarehouseReportController;
+use App\Http\Controllers\Admin\ShopController;
+use App\Http\Controllers\Admin\CompanyController;
+// use App\Http\Controllers\Admin\WarehouseController;
+// use App\Http\Controllers\Admin\InvoiceController;
 // use App\Http\Controllers\WarehouseStockController;
 use App\Http\Controllers\Company\WarehouseAdminController; // ✅ New
 // use App\Http\Controllers\Company\AdminController;
@@ -320,6 +324,11 @@ Route::get('/warehouse-report', [WarehouseReportController::class, 'index'])
         // ✅ Requests (shop placing requests)
         Route::post('requests', [\App\Http\Controllers\Shop\ShopRequestController::class, 'store'])
             ->name('requests.store');
+        
+
+            Route::post('requests/{id}/cancel', [\App\Http\Controllers\Shop\ShopRequestController::class, 'cancel'])
+            ->name('requests.cancel');
+        
 
         // ✅ Requests List (shop can view their submitted requests)
         Route::get('requests', [\App\Http\Controllers\Shop\ShopRequestController::class, 'index'])
@@ -336,6 +345,15 @@ Route::get('/warehouse-report', [WarehouseReportController::class, 'index'])
     });
 
     
+// routes/web.php
+
+
+Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('shops', \App\Http\Controllers\Admin\ShopController::class);
+    Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
+    Route::resource('warehouses', WarehouseController::class);
+    Route::resource('invoices', InvoiceController::class);
+});
 
 /*
 |--------------------------------------------------------------------------|
