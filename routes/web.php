@@ -158,11 +158,11 @@ Route::middleware(['auth'])
         Route::post('warehouse-admins/multiple', [WarehouseAdminController::class, 'storeMultiple'])
     ->name('warehouse-admins.storeMultiple');
 
-    Route::put('/', [WarehouseAdminController::class, 'update'])
-    ->name('warehouse-admins.update');
+//     Route::put('/', [WarehouseAdminController::class, 'update'])
+//     ->name('warehouse-admins.update');
 
-Route::delete('/', [WarehouseAdminController::class, 'destroy'])
-    ->name('warehouse-admins.destroy');
+// Route::delete('/', [WarehouseAdminController::class, 'destroy'])
+//     ->name('warehouse-admins.destroy');
 
     // ✅ Delivery Person Routes
     // Route::prefix('deliveries')->name('deliveries.')->group(function () {
