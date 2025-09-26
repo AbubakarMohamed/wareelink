@@ -7,13 +7,12 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::dropIfExists('warehouse_admin_warehouse');  // Ensure no previous table exists
         Schema::create('warehouse_admin_warehouse', function (Blueprint $table) {
             $table->id();
             $table->foreignId('warehouse_id')->constrained()->onDelete('cascade');
             $table->foreignId('warehouse_admin_id')->constrained()->onDelete('cascade');
             $table->timestamps();
-    
+
             $table->unique(['warehouse_id', 'warehouse_admin_id']);
         });
     }
