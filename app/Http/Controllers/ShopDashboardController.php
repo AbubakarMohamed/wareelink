@@ -21,16 +21,22 @@ class ShopDashboardController extends Controller
 
         $shopId = $user->id;
 
-        // ✅ Stats
-        $totalRequests = ShopRequest::where('shop_id', $shopId)->count();
-        $approved      = ShopRequest::where('shop_id', $shopId)->where('status', 'approved')->count();
-        $pending       = ShopRequest::where('shop_id', $shopId)->where('status', 'pending')->count();
-        $rejected      = ShopRequest::where('shop_id', $shopId)->where('status', 'rejected')->count();
-        $cancelled      = ShopRequest::where('shop_id', $shopId)->where('status', 'cancelled')->count();
+        // ✅ Requests lifecycle counts
+$totalRequests = ShopRequest::where('shop_id', $shopId)
+->whereIn('status', ['pending', 'approved', 'invoiced', 'rejected', 'cancelled'])
+->count();
 
-        $unpaidInvoices = Invoice::where('shop_id', $shopId)
-            ->where('status', 'unpaid')
-            ->count();
+$pending   = ShopRequest::where('shop_id', $shopId)->where('status', 'pending')->count();
+$approved  = ShopRequest::where('shop_id', $shopId)->where('status', 'approved')->count();
+$invoiced  = ShopRequest::where('shop_id', $shopId)->where('status', 'invoiced')->count();
+$rejected  = ShopRequest::where('shop_id', $shopId)->where('status', 'rejected')->count();
+$cancelled = ShopRequest::where('shop_id', $shopId)->where('status', 'cancelled')->count();
+
+// ✅ Invoices
+$unpaidInvoices = Invoice::where('shop_id', $shopId)
+->where('status', 'unpaid')
+->count();
+
 
         // ✅ Recent Requests (last 5)
         $recentRequests = ShopRequest::with(['stock.product'])
@@ -52,6 +58,7 @@ class ShopDashboardController extends Controller
                 'pending'       => $pending,
                 'rejected'      => $rejected,
                 'cancelled'      => $cancelled,
+                'invoiced'      => $invoiced,
                 'unpaidInvoices'=> $unpaidInvoices,
             ],
             'recentRequests' => $recentRequests,

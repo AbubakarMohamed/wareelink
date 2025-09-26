@@ -8,7 +8,7 @@ import {
   ClockIcon,
   CurrencyDollarIcon,
   CheckCircleIcon,
-  XCircleIcon, // ✅ Added Cancelled icon
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 
 export default function ShopDashboard({ stats, recentRequests }) {
@@ -20,38 +20,56 @@ export default function ShopDashboard({ stats, recentRequests }) {
     });
   }, []);
 
-  const cards = [
+  // ✅ Define all cards
+  const allCards = [
     {
       name: "Total Requests",
       value: stats?.totalRequests ?? 0,
       icon: ClipboardDocumentCheckIcon,
       color: "bg-indigo-100 text-indigo-600",
+      alwaysShow: true,
     },
     {
       name: "Approved",
       value: stats?.approved ?? 0,
       icon: CheckCircleIcon,
       color: "bg-green-100 text-green-600",
+      alwaysShow: false,
     },
     {
       name: "Pending",
       value: stats?.pending ?? 0,
       icon: ClockIcon,
       color: "bg-yellow-100 text-yellow-600",
+      alwaysShow: false,
+    },
+    {
+      name: "Invoiced", // ✅ Added
+      value: stats?.invoiced ?? 0,
+      icon: CurrencyDollarIcon,
+      color: "bg-blue-100 text-blue-600",
+      alwaysShow: false,
     },
     {
       name: "Cancelled",
-      value: stats?.cancelled ?? 0, // ✅ New stat
+      value: stats?.cancelled ?? 0,
       icon: XCircleIcon,
       color: "bg-gray-100 text-gray-600",
+      alwaysShow: true,
     },
     {
-      name: "Unpaid Invoices",
-      value: stats?.unpaidInvoices ?? 0,
-      icon: CurrencyDollarIcon,
+      name: "Rejected",
+      value: stats?.rejected ?? 0,
+      icon: XCircleIcon,
       color: "bg-red-100 text-red-600",
+      alwaysShow: true,
     },
   ];
+
+  // ✅ Filter: show lifecycle statuses only if > 0, always show cancelled/rejected
+  const visibleCards = allCards.filter(
+    (card) => card.alwaysShow || card.value > 0
+  );
 
   return (
     <AuthenticatedLayout
@@ -67,7 +85,7 @@ export default function ShopDashboard({ stats, recentRequests }) {
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           {/* Stats */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
-            {cards.map((card) => (
+            {visibleCards.map((card) => (
               <div
                 key={card.name}
                 className="rounded-xl bg-white p-6 shadow hover:shadow-md transition"
@@ -111,6 +129,8 @@ export default function ShopDashboard({ stats, recentRequests }) {
                                 ? "bg-green-100 text-green-700"
                                 : req.status === "pending"
                                 ? "bg-yellow-100 text-yellow-700"
+                                : req.status === "invoiced"
+                                ? "bg-blue-100 text-blue-700"
                                 : req.status === "cancelled"
                                 ? "bg-gray-100 text-gray-700"
                                 : "bg-red-100 text-red-700"
@@ -126,7 +146,10 @@ export default function ShopDashboard({ stats, recentRequests }) {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" className="px-4 py-4 text-center text-gray-500">
+                      <td
+                        colSpan="4"
+                        className="px-4 py-4 text-center text-gray-500"
+                      >
                         No recent requests
                       </td>
                     </tr>

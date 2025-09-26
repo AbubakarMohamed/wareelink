@@ -11,18 +11,30 @@ use Inertia\Inertia;
 class InvoiceController extends Controller
 {
     // List all invoices (only for warehouse admin)
-    public function index()
+public function index()
 {
-    $invoices = Invoice::with(['request.stock.product', 'shop', 'warehouse'])
-        ->latest()
-        ->get();
+    $user = auth()->user();
 
-    return Inertia::render('Warehouse/Invoices/Index', [
+    // Get warehouse IDs this admin manages
+    $warehouseIds = $user->managedWarehouses()->pluck('warehouses.id');
+
+    if ($warehouseIds->isEmpty()) {
+        $invoices = collect(); // empty collection
+    } else {
+        // Fetch only invoices for these warehouses
+        $invoices = Invoice::whereIn('warehouse_id', $warehouseIds)
+            ->with(['request.stock.product', 'shop', 'warehouse'])
+            ->latest()
+            ->get();
+    }
+
+    return \Inertia\Inertia::render('Warehouse/Invoices/Index', [
         'invoices' => $invoices,
-        'auth'     => ['user' => auth()->user()],
+        'auth'     => ['user' => $user],
         'flash'    => session()->only(['success', 'error']),
     ]);
 }
+
 
 
     public function store(HttpRequest $request)

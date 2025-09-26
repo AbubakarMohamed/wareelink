@@ -10,11 +10,17 @@ return new class extends Migration {
         Schema::create('warehouse_admin_warehouse', function (Blueprint $table) {
             $table->id();
             $table->foreignId('warehouse_id')->constrained()->onDelete('cascade');
-            $table->foreignId('warehouse_admin_id')->constrained()->onDelete('cascade');
+        
+            // Link to users table, since warehouse admins are users
+            $table->foreignId('warehouse_admin_id')
+                  ->constrained('users')
+                  ->onDelete('cascade');
+        
             $table->timestamps();
-
+        
             $table->unique(['warehouse_id', 'warehouse_admin_id']);
         });
+        
     }
 
     public function down(): void

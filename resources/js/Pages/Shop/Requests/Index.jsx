@@ -67,6 +67,9 @@ export default function Index() {
                                         {req.status === "cancelled" && (
                                             <span className="text-gray-600 font-semibold">Cancelled</span>
                                         )}
+                                        {req.status === "invoiced" && (
+                                            <span className="text-gray-600 font-semibold">Invoiced</span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-2 border">
                                         {new Date(req.created_at).toLocaleString()}

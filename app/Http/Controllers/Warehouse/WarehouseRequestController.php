@@ -4,22 +4,35 @@ namespace App\Http\Controllers\Warehouse;
 
 use App\Http\Controllers\Controller;
 use App\Models\Request as ShopRequest;
-use App\Models\WarehouseStock;
-use App\Models\Invoice;
-use Illuminate\Http\Request as HttpRequest;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request as HttpRequest; // ✅ Added this line
+use App\Models\Invoice; // ✅ Needed for createInvoice()
 
 class WarehouseRequestController extends Controller
 {
     public function index()
     {
-        $requests = ShopRequest::with(['shop', 'stock.product', 'stock.warehouse'])
-            ->latest()
-            ->get();
+        $user = Auth::user();
 
-        return Inertia::render('Warehouse/Requests/Index', [
+        // Get warehouse IDs this admin manages
+        $warehouseIds = $user->managedWarehouses()->pluck('warehouses.id');
+
+        // If none found, don't show anything
+        if ($warehouseIds->isEmpty()) {
+            $requests = collect(); // empty collection
+        } else {
+            // Fetch only requests for these warehouses
+            $requests = ShopRequest::whereHas('stock.warehouse', function ($query) use ($warehouseIds) {
+                    $query->whereIn('warehouses.id', $warehouseIds);
+                })
+                ->with(['shop', 'stock.product', 'stock.warehouse'])
+                ->latest()
+                ->get();
+        }
+
+        return \Inertia\Inertia::render('Warehouse/Requests/Index', [
             'requests' => $requests,
-            'auth'     => ['user' => auth()->user()],
+            'auth'     => ['user' => $user],
             'flash'    => session()->only(['success', 'error']),
         ]);
     }
@@ -59,10 +72,10 @@ class WarehouseRequestController extends Controller
 
         // Create invoice
         $invoice = Invoice::create([
-            'request_id' => $request->id,
-            'shop_id'    => $request->shop_id,
+            'request_id'   => $request->id,
+            'shop_id'      => $request->shop_id,
             'warehouse_id' => $request->stock->warehouse_id,
-            'amount'     => $request->quantity * $request->stock->price,
+            'amount'       => $request->quantity * $request->stock->price,
             // Add other invoice fields if needed
         ]);
 

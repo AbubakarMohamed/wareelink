@@ -9,24 +9,31 @@ use Inertia\Inertia;
 class WarehouseReportController extends Controller
 {
     public function index()
-    {
-        // Fetch all invoices with related warehouse and request data
-        $invoices = Invoice::with([
-            'warehouse',
-            'shop',
-            'request.stock.product'
-        ])->get();
+{
+    $user = auth()->user();
 
-        // Optional: you could also filter by date, warehouse, or status here
+    // Get warehouse IDs this admin manages
+    $warehouseIds = $user->managedWarehouses()->pluck('warehouses.id');
 
-        return Inertia::render('Warehouse/Reports/WarehouseReport', [
-            'invoices' => $invoices,
-            'flash' => [
-                'success' => session('success'),
-                'error' => session('error'),
-            ],
-        ]);
-        
-        
+    if ($warehouseIds->isEmpty()) {
+        $invoices = collect(); // empty collection
+    } else {
+        // Fetch only invoices for these warehouses
+        $invoices = Invoice::whereIn('warehouse_id', $warehouseIds)
+            ->with([
+                'warehouse',
+                'shop',
+                'request.stock.product'
+            ])
+            ->latest()
+            ->get();
     }
+
+    return \Inertia\Inertia::render('Warehouse/Reports/WarehouseReport', [
+        'invoices' => $invoices,
+        'auth'     => ['user' => $user],
+        'flash'    => session()->only(['success', 'error']),
+    ]);
+}
+
 }
