@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -23,9 +24,22 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'role' => 'shop', // 👈 default role for testing (can change if needed)
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+
+        $user = User::first();
+
+        // Role-aware expected redirect
+        $expectedRoute = match ($user->role) {
+            'shop'      => route('shop.dashboard'),
+            'company'   => route('company.dashboard'),
+            'warehouse' => route('warehouse.dashboard'),
+            'admin'     => route('admin.dashboard'),
+            default     => route('dashboard'),
+        };
+
+        $response->assertRedirect($expectedRoute);
     }
 }
