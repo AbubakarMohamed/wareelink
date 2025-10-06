@@ -21,13 +21,9 @@ class AdminDashboardController extends Controller
         }
 
         $stats = [
-            'users' => User::count(),
-            'shops' => Shop::count(),
-            'warehouses' => Warehouse::count(),
-            'companies' => Company::count(), // 👈 new
-            'invoices' => Invoice::count(),
-            'paidInvoices' => Invoice::where('status', 'paid')->count(),
-            'unpaidInvoices' => Invoice::where('status', '!=', 'paid')->count(),
+            'shops'      => Shop::count() ?? 0,
+            'companies'  => Company::count() ?? 0,
+            'warehouses' => Warehouse::count() ?? 0,
         ];
 
         return Inertia::render('Admin/AdminDashboard', [

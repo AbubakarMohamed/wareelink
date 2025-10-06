@@ -17,9 +17,7 @@ class WarehouseStockController extends Controller
     {
         $companyId = Auth::user()->company->id;
 
-        $stocks = WarehouseStock::whereHas('warehouse', function ($query) use ($companyId) {
-                $query->where('company_id', $companyId);
-            })
+        $stocks = WarehouseStock::where('company_id', $companyId)
             ->with(['warehouse', 'product'])
             ->get();
 
@@ -48,17 +46,19 @@ class WarehouseStockController extends Controller
             ->where('company_id', $companyId)
             ->firstOrFail();
 
-        $product = Product::findOrFail($request->product_id);
+        $product = Product::where('id', $request->product_id)
+            ->where('company_id', $companyId)
+            ->firstOrFail();
 
-        // Current quantity in this warehouse
         $currentStock = WarehouseStock::where('warehouse_id', $warehouse->id)
             ->where('product_id', $product->id)
+            ->where('company_id', $companyId)
             ->value('quantity') ?? 0;
 
-        // Total allocated in all warehouses
-        $totalAllocated = WarehouseStock::where('product_id', $product->id)->sum('quantity');
+        $totalAllocated = WarehouseStock::where('product_id', $product->id)
+            ->where('company_id', $companyId)
+            ->sum('quantity');
 
-        // Remaining stock available
         $remaining = $product->stock - $totalAllocated;
 
         if ($request->quantity > $remaining) {
@@ -67,13 +67,13 @@ class WarehouseStockController extends Controller
                 ->withErrors(['quantity' => "Cannot allocate {$request->quantity}. Only {$remaining} units remaining."]);
         }
 
-        // Update or create with proper quantity
         $newQuantity = $currentStock + $request->quantity;
 
         $stock = WarehouseStock::updateOrCreate(
             [
                 'warehouse_id' => $warehouse->id,
                 'product_id'   => $product->id,
+                'company_id'   => $companyId, // ✅ FIX
             ],
             [
                 'quantity' => $newQuantity,
@@ -87,7 +87,7 @@ class WarehouseStockController extends Controller
             $stock
         );
 
-        return redirect()->route('warehouse-stocks.index')
+        return redirect()->route('warehousestocks.index')
             ->with('success', 'Stock added successfully!');
     }
 
@@ -109,13 +109,18 @@ class WarehouseStockController extends Controller
                 ->where('company_id', $companyId)
                 ->firstOrFail();
 
-            $product = Product::findOrFail($validated['product_id']);
+            $product = Product::where('id', $validated['product_id'])
+                ->where('company_id', $companyId)
+                ->firstOrFail();
 
             $currentStock = WarehouseStock::where('warehouse_id', $warehouse->id)
                 ->where('product_id', $product->id)
+                ->where('company_id', $companyId)
                 ->value('quantity') ?? 0;
 
-            $totalAllocated = WarehouseStock::where('product_id', $product->id)->sum('quantity');
+            $totalAllocated = WarehouseStock::where('product_id', $product->id)
+                ->where('company_id', $companyId)
+                ->sum('quantity');
 
             $remaining = $product->stock - $totalAllocated;
 
@@ -133,6 +138,7 @@ class WarehouseStockController extends Controller
                 [
                     'warehouse_id' => $warehouse->id,
                     'product_id'   => $product->id,
+                    'company_id'   => $companyId, // ✅ FIX
                 ],
                 [
                     'quantity' => $newQuantity,
@@ -156,7 +162,7 @@ class WarehouseStockController extends Controller
     {
         $companyId = Auth::user()->company->id;
 
-        if ($warehouseStock->warehouse->company_id !== $companyId) {
+        if ($warehouseStock->company_id !== $companyId) {
             abort(403, 'Unauthorized');
         }
 
@@ -166,10 +172,12 @@ class WarehouseStockController extends Controller
             'quantity'     => 'required|integer|min:0',
         ]);
 
-        $product = Product::findOrFail($request->product_id);
+        $product = Product::where('id', $request->product_id)
+            ->where('company_id', $companyId)
+            ->firstOrFail();
 
-        // Remaining stock excluding this warehouse
         $totalAllocated = WarehouseStock::where('product_id', $product->id)
+            ->where('company_id', $companyId)
             ->where('id', '!=', $warehouseStock->id)
             ->sum('quantity');
 
@@ -181,7 +189,12 @@ class WarehouseStockController extends Controller
                 ->withErrors(['quantity' => "Cannot set quantity to {$request->quantity}. Only {$remaining} units remaining."]);
         }
 
-        $warehouseStock->update($request->only('warehouse_id', 'product_id', 'quantity'));
+        $warehouseStock->update([
+            'warehouse_id' => $request->warehouse_id,
+            'product_id'   => $request->product_id,
+            'quantity'     => $request->quantity,
+            'company_id'   => $companyId, // ✅ keep company_id intact
+        ]);
 
         ActivityLog::record(
             Auth::id(),
@@ -198,7 +211,7 @@ class WarehouseStockController extends Controller
     {
         $companyId = Auth::user()->company->id;
 
-        if ($warehouseStock->warehouse->company_id !== $companyId) {
+        if ($warehouseStock->company_id !== $companyId) {
             abort(403, 'Unauthorized');
         }
 

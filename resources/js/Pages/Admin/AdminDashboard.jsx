@@ -1,15 +1,12 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import AuthService from "@/Services/AuthService";
 
 // ✅ Recharts
 import {
     BarChart,
     Bar,
-    PieChart,
-    Pie,
-    Cell,
     Tooltip,
     ResponsiveContainer,
     XAxis,
@@ -17,35 +14,49 @@ import {
     Legend,
 } from "recharts";
 
+// ✅ Icons
+import {
+    BuildingStorefrontIcon,
+    BuildingOfficeIcon,
+    CubeIcon,
+} from "@heroicons/react/24/outline";
+
+// ✅ Count animation
+import CountUp from "react-countup";
+
 export default function AdminDashboard({ stats }) {
-    useEffect(() => {
-        AuthService.getUser().then((user) => {
-            if (user.role !== "admin") {
-                router.visit(AuthService.getRedirectUrl(user.role));
-            }
-        });
-    }, []);
+    const [loading, setLoading] = useState(false);
 
-    // Dummy data (replace with your backend-provided stats)
+
+    // ✅ Fallback to 0 if DB returns null/undefined
     const barData = [
-        // { name: "Users", count: stats?.users || 120 },
-        { name: "Shops", count: stats?.shops || 34 },
+        { name: "Shops", count: stats?.shops || 0 },
         { name: "Companies", count: stats?.companies || 0 },
-        { name: "Warehouses", count: stats?.warehouses || 12 },
-        // { name: "Invoices", count: stats?.invoices || 452 },
+        { name: "Warehouses", count: stats?.warehouses || 0 },
     ];
+    
+    const hasData = barData.some(item => item.count > 0);
+    
+ 
+    
 
-    const pieData = [
-        { name: "Paid", value: stats?.paidInvoices || 320 },
-        { name: "Unpaid", value: stats?.unpaidInvoices || 0 },
-    ];
+    const handleExport = () => {
+        // Placeholder export logic
+        alert("📦 Export feature coming soon!");
+    };
 
-    const COLORS = ["#10B981", "#EF4444"];
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <p className="text-gray-600 text-lg">Loading dashboard...</p>
+            </div>
+        );
+    }
 
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-2xl font-bold leading-tight text-gray-800">
+                <h2 className="text-2xl font-bold leading-tight text-gray-800 dark:text-white">
                     Admin Dashboard
                 </h2>
             }
@@ -53,36 +64,42 @@ export default function AdminDashboard({ stats }) {
             <Head title="Admin Dashboard" />
 
             <div className="py-8">
-                <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-8">
-                    {/* ✅ Stat Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {/* <div className="bg-white p-6 shadow rounded-lg">
-                            <p className="text-gray-500">Users</p>
-                            <h3 className="text-2xl font-bold">{stats?.users || 120}</h3>
-                        </div> */}
-                        <div className="bg-white p-6 shadow rounded-lg">
-                            <p className="text-gray-500">Shops</p>
-                            <h3 className="text-2xl font-bold">{stats?.shops || 34}</h3>
-                        </div>
-                        <div className="bg-white p-6 shadow rounded-lg">
-        <p className="text-gray-500">Companies</p>
-        <h3 className="text-2xl font-bold">{stats?.companies || 0}</h3>
-    </div>
-                        <div className="bg-white p-6 shadow rounded-lg">
-                            <p className="text-gray-500">Warehouses</p>
-                            <h3 className="text-2xl font-bold">{stats?.warehouses || 12}</h3>
-                        </div>
-                        <div className="bg-white p-6 shadow rounded-lg">
-                            <p className="text-gray-500">Invoices</p>
-                            <h3 className="text-2xl font-bold">{stats?.invoices || 452}</h3>
-                        </div>
+                <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-10">
+
+                    {/* ✅ Top Section: Stat Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <StatCard
+                            title="Shops"
+                            value={stats?.shops || 0}
+                            icon={<BuildingStorefrontIcon className="w-10 h-10 text-blue-500" />}
+                        />
+                        <StatCard
+                            title="Companies"
+                            value={stats?.companies || 0}
+                            icon={<BuildingOfficeIcon className="w-10 h-10 text-green-500" />}
+                        />
+                        <StatCard
+                            title="Warehouses"
+                            value={stats?.warehouses || 0}
+                            icon={<CubeIcon className="w-10 h-10 text-purple-500" />}
+                        />
                     </div>
 
-                    {/* ✅ Charts Section */}
+                    {/* ✅ Middle Section: Charts */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* Bar Chart */}
-                        <div className="bg-white p-6 shadow rounded-lg">
-                            <h3 className="text-lg font-semibold mb-4">System Overview</h3>
+                        <div className="bg-white dark:bg-gray-800 p-6 shadow rounded-lg">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                                    System Overview
+                                </h3>
+                                <button
+                                    onClick={handleExport}
+                                    className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                                >
+                                    Export Stats
+                                </button>
+                            </div>
                             <ResponsiveContainer width="100%" height={300}>
                                 <BarChart data={barData}>
                                     <XAxis dataKey="name" />
@@ -93,34 +110,38 @@ export default function AdminDashboard({ stats }) {
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
+                        
 
-                        {/* Pie Chart */}
-                        <div className="bg-white p-6 shadow rounded-lg">
-                            <h3 className="text-lg font-semibold mb-4">Invoices Status</h3>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <PieChart>
-                                    <Pie
-                                        data={pieData}
-                                        dataKey="value"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={100}
-                                        label
-                                    >
-                                        {pieData.map((entry, index) => (
-                                            <Cell
-                                                key={`cell-${index}`}
-                                                fill={COLORS[index % COLORS.length]}
-                                            />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
+                    </div>
+
+                    {/* ✅ Bottom Section: Recent Activity */}
+                    <div className="bg-white dark:bg-gray-800 p-6 shadow rounded-lg">
+                        <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">
+                            Recent Activity
+                        </h3>
+                        <ul className="space-y-3 text-gray-600 dark:text-gray-300 text-sm">
+                            <li>🛍️ New shop registered: <strong>Urban Mart</strong></li>
+                            <li>🏢 Company profile updated: <strong>TechNova Ltd</strong></li>
+                            <li>🏬 Warehouse inventory synced: <strong>East Zone</strong></li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </AuthenticatedLayout>
+    );
+}
+
+// ✅ Reusable StatCard Component
+function StatCard({ title, value, icon }) {
+    return (
+        <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-6 shadow rounded-lg flex items-center space-x-4 border-l-4 border-blue-400 dark:border-blue-600">
+            <div>{icon}</div>
+            <div>
+                <p className="text-gray-500 dark:text-gray-400">{title}</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <CountUp end={value || 0} duration={1.5} />
+                </h3>
+            </div>
+        </div>
     );
 }

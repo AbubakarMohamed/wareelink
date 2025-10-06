@@ -12,15 +12,16 @@ return new class extends Migration
     public function up()
 {
     Schema::table('warehouse_admins', function (Blueprint $table) {
-        $table->string('phone')->nullable();
-        $table->string('status')->default('active');
+        $table->unsignedBigInteger('company_id')->nullable()->after('id');
+        $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
     });
 }
 
 public function down()
 {
     Schema::table('warehouse_admins', function (Blueprint $table) {
-        $table->dropColumn(['phone', 'status']);
+        $table->dropForeign(['company_id']);
+        $table->dropColumn('company_id');
     });
 }
 

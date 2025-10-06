@@ -11,6 +11,7 @@ class WarehouseStock extends Model
     use HasFactory;
 
     protected $fillable = [
+        'company_id',     // ✅ added
         'warehouse_id',
         'product_id',
         'quantity',
@@ -19,12 +20,19 @@ class WarehouseStock extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | Boot Method for Activity Logging
+    | Boot Method for Auto company_id + Activity Logging
     |--------------------------------------------------------------------------
     */
     protected static function boot()
     {
         parent::boot();
+
+        // ✅ Auto-assign company_id
+        static::creating(function ($stock) {
+            if (auth()->check() && auth()->user()->company) {
+                $stock->company_id = auth()->user()->company->id;
+            }
+        });
 
         static::created(function ($stock) {
             ActivityLog::record(auth()->id(), 'created', "Added stock for product ID {$stock->product_id} in warehouse ID {$stock->warehouse_id}", $stock);
@@ -44,7 +52,6 @@ class WarehouseStock extends Model
     | Relationships
     |--------------------------------------------------------------------------
     */
-
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class);
@@ -54,4 +61,6 @@ class WarehouseStock extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+
 }

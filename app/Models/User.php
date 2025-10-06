@@ -105,9 +105,9 @@ public function deliveryPerson()
     {
         return $this->belongsToMany(
             Warehouse::class,
-            'warehouse_admin_warehouse', // pivot table
-            'warehouse_admin_id',        // foreign key on pivot (profile id)
-            'warehouse_id'               // related warehouse key
+            'warehouse_admins',   // correct pivot table
+        'user_id',            // foreign key on pivot for user
+        'warehouse_id'        // foreign key for warehouse
         )->withTimestamps();
     }
 

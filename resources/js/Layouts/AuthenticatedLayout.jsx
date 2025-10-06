@@ -18,6 +18,7 @@ import {
     ClipboardDocumentListIcon,
     DocumentTextIcon,
     TruckIcon,
+    ArchiveBoxIcon,
 } from "@heroicons/react/24/outline";
 
 export default function AuthenticatedLayout({ header, children }) {
@@ -35,16 +36,73 @@ export default function AuthenticatedLayout({ header, children }) {
     const menuItems = {
         admin: [
             {
-                heading: "General",
-                items: [{ label: "Dashboard", route: "admin.dashboard", icon: HomeIcon }],
+                heading: "🌍 General",
+                items: [
+                    {
+                        label: "Dashboard",
+                        route: "admin.dashboard",
+                        icon: HomeIcon,
+                        description: "Overview & insights",
+                    },
+                ],
             },
             {
-                heading: "Management",
-                items: [{ label: "Users", route: "admin.users.index", icon: UserGroupIcon }],
+                heading: "👥 Management",
+                items: [
+                    {
+                        label: "Users",
+                        route: "admin.users.index",
+                        icon: UserGroupIcon,
+                        badge: "12 new", // optional badge
+                        description: "Manage platform users",
+                    },
+                    {
+                        label: "Shops",
+                        route: "admin.shops.index",
+                        icon: BuildingStorefrontIcon,
+                        description: "View & edit shop profiles",
+                    },
+                    {
+                        label: "Companies",
+                        route: "admin.companies.index",
+                        icon: BuildingOfficeIcon,
+                        description: "Corporate accounts",
+                    },
+                ],
             },
             {
-                heading: "System",
-                items: [{ label: "Settings", route: "settings.index", icon: Cog6ToothIcon }],
+                heading: "📦 Inventory",
+                items: [
+                    {
+                        label: "Warehouses",
+                        route: "admin.warehouses.index",
+                        icon: CubeIcon,
+                        description: "Track warehouse capacity",
+                    },
+                    {
+                        label: "Products",
+                        route: "admin.products.index",
+                        icon: ArchiveBoxIcon,
+                        description: "Manage product catalog",
+                    },
+                ],
+            },
+            {
+                heading: "⚙️ System",
+                items: [
+                    {
+                        label: "Settings",
+                        route: "settings.index",
+                        icon: Cog6ToothIcon,
+                        description: "Platform configurations",
+                    },
+                    {
+                        label: "Logs",
+                        route: "admin.logs.index",
+                        icon: DocumentTextIcon,
+                        description: "System audit logs",
+                    },
+                ],
             },
         ],
         company: [
