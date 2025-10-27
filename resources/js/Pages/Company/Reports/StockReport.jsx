@@ -47,7 +47,29 @@ export default function StockReport({ company, report }) {
   // Export PDF
   const exportPDF = () => {
     const doc = new jsPDF();
+
+    // Title
     doc.text(`Stock Report - ${company.name}`, 14, 10);
+
+    // Prepare table body
+    const tableBody = filteredReport.map((row, index) => [
+      index + 1,
+      row.warehouse,
+      row.product,
+      row.sku,
+      row.category,
+      row.quantity,
+      `Ksh ${Number(row.unit_price).toLocaleString()}`,
+      `Ksh ${Number(row.value).toLocaleString()}`,
+    ]);
+
+    // Add grand total row
+    const totalValue = filteredReport.reduce((sum, r) => sum + r.value, 0);
+    tableBody.push([
+      "", "", "", "", "", "", "Grand Total", `Ksh ${Number(totalValue).toLocaleString()}`, ""
+    ]);
+
+    // Generate table
     autoTable(doc, {
       head: [
         [
@@ -61,16 +83,9 @@ export default function StockReport({ company, report }) {
           "Total Value",
         ],
       ],
-      body: filteredReport.map((row, index) => [
-        index + 1,
-        row.warehouse,
-        row.product,
-        row.sku,
-        row.category,
-        row.quantity,
-        `$${row.unit_price}`,
-        `$${row.value}`,
-      ]),
+      body: tableBody,
+      startY: 20, // start below the title
+      styles: { fontSize: 10 },
     });
     doc.save("stock_report.pdf");
   };
@@ -96,10 +111,8 @@ export default function StockReport({ company, report }) {
             <div className="flex items-center gap-3 mb-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                // className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 flex items-center gap-2"
               >
                 <ListFilter className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 transition-colors duration-200" />
-                
               </button>
               <button
                 onClick={exportExcel}
@@ -115,7 +128,7 @@ export default function StockReport({ company, report }) {
               </button>
             </div>
 
-            {/* Hidden filters - only show when funnel is clicked */}
+            {/* Hidden filters */}
             {showFilters && (
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
                 <input
@@ -188,8 +201,12 @@ export default function StockReport({ company, report }) {
                         <td className="px-4 py-2 border">{row.sku}</td>
                         <td className="px-4 py-2 border">{row.category}</td>
                         <td className="px-4 py-2 border">{row.quantity}</td>
-                        <td className="px-4 py-2 border">${row.unit_price}</td>
-                        <td className="px-4 py-2 border">${row.value}</td>
+                        <td className="px-4 py-2 border">
+                          Ksh {Number(row.unit_price).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2 border">
+                          Ksh {Number(row.value).toLocaleString()}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -198,7 +215,10 @@ export default function StockReport({ company, report }) {
                       <td colSpan="7" className="px-4 py-2 border text-right">
                         Grand Total
                       </td>
-                      <td className="px-4 py-2 border">${totalValue}</td>
+                      <td className="px-4 py-2 border">
+                        Ksh {Number(totalValue).toLocaleString()}
+                      </td>
+                      
                     </tr>
                   </tfoot>
                 </table>

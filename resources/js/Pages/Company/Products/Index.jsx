@@ -8,7 +8,9 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export default function Index() {
-    const { products } = usePage().props;
+    const { products = [], auth = {}, companies = [] } = usePage().props;
+ // ✅ added auth & companies from props
+    const isAdmin = auth?.user?.role === "admin"; // ✅ check user role
 
     // Modal & Form States
     const [isModalOpen, setModalOpen] = useState(false);
@@ -17,11 +19,12 @@ export default function Index() {
 
     // Multi-product form state
     const [productsForm, setProductsForm] = useState([
-        { name: "", sku: "", category: "", description: "", price: "", stock: 0, status: "active" },
+        { company_id: "", name: "", sku: "", category: "", description: "", price: "", stock: 0, status: "active" },
     ]);
 
     // Single-product form for editing
     const [form, setForm] = useState({
+        company_id: "",
         name: "",
         sku: "",
         category: "",
@@ -49,6 +52,7 @@ export default function Index() {
         if (type === "edit" && product) {
             setEditingProduct(product);
             setForm({
+                company_id: product.company_id || "",
                 name: product.name || "",
                 sku: product.sku || "",
                 category: product.category || "",
@@ -59,7 +63,9 @@ export default function Index() {
             });
         } else if (type === "add") {
             setEditingProduct(null);
-            setProductsForm([{ name: "", sku: "", category: "", description: "", price: "", stock: 0, status: "active" }]);
+            setProductsForm([
+                { company_id: "", name: "", sku: "", category: "", description: "", price: "", stock: 0, status: "active" },
+            ]);
         } else if (type === "delete") {
             setEditingProduct(product);
         }
@@ -87,7 +93,10 @@ export default function Index() {
     };
 
     const addProductRow = () => {
-        setProductsForm([...productsForm, { name: "", sku: "", category: "", description: "", price: "", stock: 0, status: "active" }]);
+        setProductsForm([
+            ...productsForm,
+            { company_id: "", name: "", sku: "", category: "", description: "", price: "", stock: 0, status: "active" },
+        ]);
     };
 
     const removeProductRow = (index) => {
@@ -108,8 +117,8 @@ export default function Index() {
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-            // Map Excel columns to product form structure
             const importedProducts = jsonData.map((row) => ({
+                company_id: "",
                 name: row["Name"] || "",
                 sku: row["SKU"] || "",
                 category: row["Category"] || "",
@@ -221,7 +230,7 @@ export default function Index() {
                 p.sku,
                 p.category ?? "-",
                 p.description ?? "-",
-                `$${Number(p.price).toFixed(2)}`,
+                `Ksh${Number(p.price).toFixed(2)}`,
                 p.stock ?? 0,
                 p.status,
             ]),
@@ -271,6 +280,7 @@ export default function Index() {
                     <thead className="bg-gray-100 text-gray-700">
                         <tr>
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("id")}># {getSortArrow("id")}</th>
+                            {isAdmin && <th className="p-2 border text-left">Company</th>} {/* ✅ NEW COLUMN */}
                             <th className="p-2 border cursor-pointer text-left" onClick={() => requestSort("name")}>Name {getSortArrow("name")}</th>
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("sku")}>SKU {getSortArrow("sku")}</th>
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("category")}>Category {getSortArrow("category")}</th>
@@ -286,11 +296,12 @@ export default function Index() {
                             paginatedProducts.map((product, index) => (
                                 <tr key={product.id} className="hover:bg-gray-50">
                                     <td className="p-2 border text-center">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                                    {isAdmin && <td className="p-2 border">{product.company?.name ?? "-"}</td>} {/* ✅ Display company */}
                                     <td className="p-2 border">{product.name}</td>
                                     <td className="p-2 border text-center">{product.sku}</td>
                                     <td className="p-2 border text-center">{product.category ?? "-"}</td>
                                     <td className="p-2 border">{product.description ?? "-"}</td>
-                                    <td className="p-2 border text-center">${Number(product.price).toFixed(2)}</td>
+                                    <td className="p-2 border text-center">Ksh {Number(product.price).toFixed(2)}</td>
                                     <td className="p-2 border text-center">{product.stock ?? 0}</td>
                                     <td className="p-2 border text-center">
                                         <span className={`px-2 py-1 rounded text-xs font-medium ${product.status === "active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
@@ -324,7 +335,7 @@ export default function Index() {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={9} className="p-4 text-center text-gray-500">No products found.</td>
+                                <td colSpan={isAdmin ? 10 : 9} className="p-4 text-center text-gray-500">No products found.</td>
                             </tr>
                         )}
                     </tbody>
@@ -396,6 +407,25 @@ export default function Index() {
                                                                 <option value="active">Active</option>
                                                                 <option value="inactive">Inactive</option>
                                                             </select>
+
+                                                            {/* 👇 Only show company select if user is admin */}
+                                                            {isAdmin && (
+  <select
+    name="company_id"
+    value={prod.company_id}
+    onChange={(e) => handleProductChange(index, e)}
+    className="px-3 py-2 border rounded w-full"
+  >
+    <option value="">Select Company</option>
+    {companies.map((company) => (
+      <option key={company.id} value={company.id}>{company.name}</option>
+    ))}
+  </select>
+)}
+
+                                                            
+                                                              
+                                                            
                                                             <textarea name="description" placeholder="Description" value={prod.description} onChange={(e) => handleProductChange(index, e)} className="px-3 py-2 border rounded w-full md:col-span-2"></textarea>
                                                         </div>
                                                     </div>
@@ -411,6 +441,24 @@ export default function Index() {
                                                         <option value="active">Active</option>
                                                         <option value="inactive">Inactive</option>
                                                     </select>
+
+                                                    {/* 👇 Only show company select if user is admin */}
+                                                    {isAdmin && (
+  <select
+    name="company_id"
+    value={form.company_id}
+    onChange={handleChange}
+    className="px-3 py-2 border rounded w-full"
+  >
+    <option value="">Select Company</option>
+    {companies.map((c) => (
+      <option key={c.id} value={c.id}>{c.name}</option>
+    ))}
+  </select>
+)}
+
+
+
                                                     <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} className="px-3 py-2 border rounded w-full md:col-span-2"></textarea>
                                                 </div>
                                             )}

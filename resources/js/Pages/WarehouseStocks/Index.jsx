@@ -7,14 +7,21 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export default function Index({ stocks, warehouses, products, auth }) {
+export default function Index({ stocks, companies, warehouses, products, auth }) {
     const [isModalOpen, setModalOpen] = useState(false);
     const [modalType, setModalType] = useState(""); // "add", "edit", "delete"
     const [editingStock, setEditingStock] = useState(null);
 
-    const [stocksForm, setStocksForm] = useState([{ warehouse_id: "", product_id: "", quantity: "" }]);
+    const [stocksForm, setStocksForm] = useState([{ company_id: "", warehouse_id: "", product_id: "", quantity: "" }]);
+// 🧠 Dynamic filtering based on selected company
+const getCompanyWarehouses = (companyId) =>
+    warehouses.filter((w) => w.company_id === companyId);
+
+const getCompanyProducts = (companyId) =>
+    products.filter((p) => p.company_id === companyId);
 
     const form = useForm({
+        company_id: "",
         warehouse_id: "",
         product_id: "",
         quantity: "",
@@ -47,13 +54,14 @@ export default function Index({ stocks, warehouses, products, auth }) {
         if (type === "edit" && stock) {
             setEditingStock(stock);
             form.setData({
+                company_id: stock.company_id,
                 warehouse_id: stock.warehouse_id,
                 product_id: stock.product_id,
                 quantity: stock.quantity,
             });
         } else if (type === "add") {
             setEditingStock(null);
-            setStocksForm([{ warehouse_id: "", product_id: "", quantity: "" }]);
+            setStocksForm([{ company_id: "", warehouse_id: "", product_id: "", quantity: "" }]);
         } else if (type === "delete") {
             setEditingStock(stock);
         }
@@ -66,7 +74,14 @@ export default function Index({ stocks, warehouses, products, auth }) {
         setEditingStock(null);
         form.reset();
     };
-
+    const [companyQuery, setCompanyQuery] = useState("");
+    const filteredCompanies =
+        companyQuery === ""
+            ? companies
+            : companies.filter((c) =>
+                  c.name.toLowerCase().includes(companyQuery.toLowerCase())
+              );
+    
     const handleStockChange = (index, name, value) => {
         const newStocks = [...stocksForm];
         newStocks[index][name] = value;
@@ -74,7 +89,7 @@ export default function Index({ stocks, warehouses, products, auth }) {
     };
 
     const addStockRow = () => {
-        setStocksForm([...stocksForm, { warehouse_id: "", product_id: "", quantity: "" }]);
+        setStocksForm([...stocksForm, { company_id: "", warehouse_id: "", product_id: "", quantity: "" }]);
     };
 
     const removeStockRow = (index) => {
@@ -91,6 +106,7 @@ export default function Index({ stocks, warehouses, products, auth }) {
         } else if (modalType === "add") {
             const payload = {
                 stocks: stocksForm.map(s => ({
+                    company_id: auth.user.role === "admin" ? s.company_id : auth.user.company_id, // ✅ admin selects company; otherwise, use user's
                     warehouse_id: s.warehouse_id,
                     product_id: s.product_id,
                     quantity: Number(s.quantity),
@@ -100,7 +116,7 @@ export default function Index({ stocks, warehouses, products, auth }) {
             router.post(route("warehousestocks.storeMultiple"), payload, {
                 onSuccess: () => {
                     closeModal();
-                    setStocksForm([{ warehouse_id: "", product_id: "", quantity: "" }]);
+                    setStocksForm([{ company_id: "", warehouse_id: "", product_id: "", quantity: "" }]);
                 },
                 onError: () => { }, // errors are automatically populated in usePage().props.errors
             });
@@ -170,11 +186,16 @@ export default function Index({ stocks, warehouses, products, auth }) {
     const exportPDF = () => {
         const doc = new jsPDF();
         doc.text("Warehouse Stocks Report", 14, 10);
-        autoTable(doc, {
-            startY: 20,
-            head: [["#", "Warehouse", "Product", "Quantity"]],
-            body: sortedStocks.map((s, i) => [i + 1, s.warehouse.name, s.product.name, s.quantity]),
-        });
+        const head = auth.user.role === "admin"
+            ? [["#", "Warehouse", "Product", "Quantity", "Company"]]
+            : [["#", "Warehouse", "Product", "Quantity"]];
+
+        const body = sortedStocks.map((s, i) =>
+            auth.user.role === "admin"
+                ? [i + 1, s.warehouse.name, s.product.name, s.quantity, s.company?.name || "—"]
+                : [i + 1, s.warehouse.name, s.product.name, s.quantity]
+        );
+        autoTable(doc, { startY: 20, head, body });
         doc.save("stocks.pdf");
     };
 
@@ -212,6 +233,10 @@ export default function Index({ stocks, warehouses, products, auth }) {
                     <thead className="bg-gray-100 text-gray-700">
                         <tr>
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("id")}># {getSortArrow("id")}</th>
+                            {/* ✅ Show company column only for admin */}
+                            {auth.user.role === "admin" && (
+                                <th className="p-2 border cursor-pointer" onClick={() => requestSort("company_id")}>Company {getSortArrow("company_id")}</th>
+                            )}
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("warehouse_id")}>Warehouse {getSortArrow("warehouse_id")}</th>
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("product_id")}>Product {getSortArrow("product_id")}</th>
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("quantity")}>Quantity {getSortArrow("quantity")}</th>
@@ -223,6 +248,10 @@ export default function Index({ stocks, warehouses, products, auth }) {
                             paginatedStocks.map((s, index) => (
                                 <tr key={s.id} className="hover:bg-gray-50">
                                     <td className="p-2 border text-center">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                                    {/* ✅ Admin-only company column */}
+                                    {auth.user.role === "admin" && (
+                                        <td className="p-2 border text-center">{s.company?.name || "—"}</td>
+                                    )}
                                     <td className="p-2 border">{s.warehouse.name}</td>
                                     <td className="p-2 border">{s.product.name}</td>
                                     <td className="p-2 border text-center">{s.quantity}</td>
@@ -285,23 +314,85 @@ export default function Index({ stocks, warehouses, products, auth }) {
                                                         {stocksForm.length > 1 && (
                                                             <button type="button" onClick={() => removeStockRow(index)} className="absolute top-2 right-2 text-red-600 font-bold">×</button>
                                                         )}
+                                                        {auth.user.role === "admin" && (
+    <Combobox
+        value={stock.company_id}
+        onChange={(val) => handleStockChange(index, "company_id", val)}
+    >
+        <div className="relative">
+            <Combobox.Input
+                className="px-3 py-2 border rounded w-full"
+                displayValue={(id) =>
+                    companies.find((c) => c.id === id)?.name || ""
+                }
+                onChange={(e) => setCompanyQuery(e.target.value)}
+                placeholder="Select company"
+            />
+            <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded bg-white border">
+                {filteredCompanies.map((c) => (
+                    <Combobox.Option
+                        key={c.id}
+                        value={c.id}
+                        className={({ active }) =>
+                            `cursor-pointer select-none px-3 py-2 ${
+                                active ? "bg-blue-500 text-white" : ""
+                            }`
+                        }
+                    >
+                        {c.name}
+                    </Combobox.Option>
+                ))}
+            </Combobox.Options>
+        </div>
+        {errors[`stocks.${index}.company_id`] && (
+            <p className="text-red-600 text-sm mt-1">
+                {errors[`stocks.${index}.company_id`]}
+            </p>
+        )}
+    </Combobox>
+)}
+
                                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                                            <Combobox value={stock.warehouse_id} onChange={(val) => handleStockChange(index, "warehouse_id", val)}>
-                                                                <div className="relative">
-                                                                    <Combobox.Input
-                                                                        className="px-3 py-2 border rounded w-full"
-                                                                        displayValue={(id) => warehouses.find(w => w.id === id)?.name || ""}
-                                                                        onChange={(e) => setWarehouseQuery(e.target.value)}
-                                                                        placeholder="Select warehouse"
-                                                                    />
-                                                                    <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded bg-white border">
-                                                                        {filteredWarehouses.map((w) => (
-                                                                            <Combobox.Option key={w.id} value={w.id} className={({ active }) => `cursor-pointer select-none px-3 py-2 ${active ? "bg-blue-500 text-white" : ""}`}>{w.name}</Combobox.Option>
-                                                                        ))}
-                                                                    </Combobox.Options>
-                                                                </div>
-                                                                {errors[`stocks.${index}.warehouse_id`] && <p className="text-red-600 text-sm mt-1">{errors[`stocks.${index}.warehouse_id`]}</p>}
-                                                            </Combobox>
+                                                        <Combobox
+    value={stock.warehouse_id}
+    onChange={(val) => handleStockChange(index, "warehouse_id", val)}
+>
+    <div className="relative">
+        <Combobox.Input
+            className="px-3 py-2 border rounded w-full"
+            displayValue={(id) =>
+                warehouses.find((w) => w.id === id)?.name || ""
+            }
+            onChange={(e) => setWarehouseQuery(e.target.value)}
+            placeholder="Select warehouse"
+        />
+        <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded bg-white border">
+            {getCompanyWarehouses(stock.company_id)
+                .filter((w) =>
+                    w.name.toLowerCase().includes(warehouseQuery.toLowerCase())
+                )
+                .map((w) => (
+                    <Combobox.Option
+                        key={w.id}
+                        value={w.id}
+                        className={({ active }) =>
+                            `cursor-pointer select-none px-3 py-2 ${
+                                active ? "bg-blue-500 text-white" : ""
+                            }`
+                        }
+                    >
+                        {w.name}
+                    </Combobox.Option>
+                ))}
+        </Combobox.Options>
+    </div>
+    {errors[`stocks.${index}.warehouse_id`] && (
+        <p className="text-red-600 text-sm mt-1">
+            {errors[`stocks.${index}.warehouse_id`]}
+        </p>
+    )}
+</Combobox>
+
 
                                                             <Combobox value={stock.product_id} onChange={(val) => handleStockChange(index, "product_id", val)}>
                                                                 <div className="relative">
@@ -312,9 +403,24 @@ export default function Index({ stocks, warehouses, products, auth }) {
                                                                         placeholder="Select product"
                                                                     />
                                                                     <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded bg-white border">
-                                                                        {filteredProducts.map((p) => (
-                                                                            <Combobox.Option key={p.id} value={p.id} className={({ active }) => `cursor-pointer select-none px-3 py-2 ${active ? "bg-blue-500 text-white" : ""}`}>{p.name}</Combobox.Option>
-                                                                        ))}
+                                                                    {getCompanyProducts(stock.company_id)
+    .filter((p) =>
+        p.name.toLowerCase().includes(productQuery.toLowerCase())
+    )
+    .map((p) => (
+        <Combobox.Option
+            key={p.id}
+            value={p.id}
+            className={({ active }) =>
+                `cursor-pointer select-none px-3 py-2 ${
+                    active ? "bg-blue-500 text-white" : ""
+                }`
+            }
+        >
+            {p.name}
+        </Combobox.Option>
+    ))}
+
                                                                     </Combobox.Options>
                                                                 </div>
                                                                 {errors[`stocks.${index}.product_id`] && <p className="text-red-600 text-sm mt-1">{errors[`stocks.${index}.product_id`]}</p>}

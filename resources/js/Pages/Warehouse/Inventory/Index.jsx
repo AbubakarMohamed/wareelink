@@ -1,17 +1,38 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
-export default function InventoryIndex({ warehouse, auth }) {
-  const [stocks, setStocks] = useState(
-    warehouse?.stocks.map((stock) => ({
-      id: stock.id,
-      product_name: stock.product?.name || "Unnamed Product",
-      quantity: stock.quantity,
-      visible_to_shop: stock.visible_to_shop,
-    })) || []
-  );
+export default function InventoryIndex({ warehouse, warehouses, auth }) {
+  // ✅ Combine all stocks for admin by default
+  const allStocks = useMemo(() => {
+    if (auth?.user?.role === "admin" && warehouses?.length > 0) {
+      return warehouses.flatMap((w) =>
+        (w.stocks || []).map((stock) => ({
+          id: stock.id,
+          product_name: stock.product?.name || "Unnamed Product",
+          quantity: stock.quantity,
+          visible_to_shop: stock.visible_to_shop,
+          warehouse_name: w.name,
+          company_name: w.company?.name || "N/A",
+        }))
+      );
+    }
 
+    // For warehouse_admin
+    return (
+      warehouse?.stocks.map((stock) => ({
+        id: stock.id,
+        product_name: stock.product?.name || "Unnamed Product",
+        quantity: stock.quantity,
+        visible_to_shop: stock.visible_to_shop,
+        warehouse_name: warehouse?.name || "N/A",
+        company_name: warehouse?.company?.name || "N/A",
+      })) || []
+    );
+  }, [warehouses, warehouse, auth]);
+
+  const [stocks, setStocks] = useState(allStocks);
+  const [selectedWarehouse, setSelectedWarehouse] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedStock, setSelectedStock] = useState(null);
 
@@ -46,6 +67,32 @@ export default function InventoryIndex({ warehouse, auth }) {
     );
   };
 
+  // ✅ Admin filter by warehouse
+  const handleWarehouseChange = (e) => {
+    const value = e.target.value;
+    setSelectedWarehouse(value);
+
+    if (value === "all") {
+      setStocks(allStocks);
+    } else {
+      const filtered =
+        warehouses
+          ?.find((w) => w.id === parseInt(value))
+          ?.stocks.map((stock) => ({
+            id: stock.id,
+            product_name: stock.product?.name || "Unnamed Product",
+            quantity: stock.quantity,
+            visible_to_shop: stock.visible_to_shop,
+            warehouse_name: warehouses.find((w) => w.id === parseInt(value))
+              ?.name,
+            company_name:
+              warehouses.find((w) => w.id === parseInt(value))?.company?.name ||
+              "N/A",
+          })) || [];
+      setStocks(filtered);
+    }
+  };
+
   return (
     <AuthenticatedLayout
       header={<h2 className="text-xl font-semibold text-gray-800">Inventory</h2>}
@@ -55,21 +102,48 @@ export default function InventoryIndex({ warehouse, auth }) {
       <div className="py-6">
         <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
           <div className="bg-white shadow rounded-lg p-6">
-            <h1 className="text-2xl font-semibold">
-              Inventory: {warehouse?.name}
-            </h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-semibold">Inventory</h1>
+
+              {/* ✅ Admin warehouse filter */}
+              {auth?.user?.role === "admin" && warehouses?.length > 0 && (
+                <select
+                  value={selectedWarehouse}
+                  onChange={handleWarehouseChange}
+                  className="border rounded px-3 py-2 text-gray-700"
+                >
+                  <option value="all">All Warehouses</option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
 
             {stocks.length > 0 ? (
               <div className="mt-4 overflow-x-auto">
                 <table className="min-w-full border border-gray-200">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-4 py-2 border">#</th>
-                      <th className="px-4 py-2 border">Product</th>
-                      <th className="px-4 py-2 border">Quantity</th>
-                      <th className="px-4 py-2 border">Visible to Shop</th>
-                      {auth?.user?.role === "warehouse_admin" && (
-                        <th className="px-4 py-2 border">Action</th>
+                      <th className="px-4 py-2 border text-left">#</th>
+                      <th className="px-4 py-2 border text-left">Product</th>
+                      <th className="px-4 py-2 border text-left">Quantity</th>
+                      {auth?.user?.role === "admin" && (
+                        <>
+                          <th className="px-4 py-2 border text-left">Company</th>
+                          <th className="px-4 py-2 border text-left">
+                            Warehouse
+                          </th>
+                        </>
+                      )}
+                      <th className="px-4 py-2 border text-left">
+                        Visible to Shop
+                      </th>
+                      {(auth?.user?.role === "warehouse_admin" ||
+                        auth?.user?.role === "admin") && (
+                        <th className="px-4 py-2 border text-left">Action</th>
                       )}
                     </tr>
                   </thead>
@@ -77,12 +151,25 @@ export default function InventoryIndex({ warehouse, auth }) {
                     {stocks.map((stock, index) => (
                       <tr key={stock.id} className="text-gray-700">
                         <td className="px-4 py-2 border">{index + 1}</td>
-                        <td className="px-4 py-2 border">{stock.product_name}</td>
+                        <td className="px-4 py-2 border">
+                          {stock.product_name}
+                        </td>
                         <td className="px-4 py-2 border">{stock.quantity}</td>
+                        {auth?.user?.role === "admin" && (
+                          <>
+                            <td className="px-4 py-2 border">
+                              {stock.company_name}
+                            </td>
+                            <td className="px-4 py-2 border">
+                              {stock.warehouse_name}
+                            </td>
+                          </>
+                        )}
                         <td className="px-4 py-2 border">
                           {stock.visible_to_shop ? "Yes" : "No"}
                         </td>
-                        {auth?.user?.role === "warehouse_admin" && (
+                        {(auth?.user?.role === "warehouse_admin" ||
+                          auth?.user?.role === "admin") && (
                           <td className="px-4 py-2 border">
                             <button
                               onClick={() => openDialog(stock)}
@@ -107,7 +194,7 @@ export default function InventoryIndex({ warehouse, auth }) {
               </p>
             )}
 
-            {/* Dialogue Modal */}
+            {/* ✅ Dialog Modal */}
             {dialogOpen && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                 <div className="bg-white rounded-lg p-6 shadow-lg max-w-sm w-full">

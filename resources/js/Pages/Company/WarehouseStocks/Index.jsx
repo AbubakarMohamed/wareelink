@@ -85,7 +85,7 @@ export default function Index({ stocks, warehouses, products, auth }) {
         e.preventDefault();
 
         if (modalType === "edit") {
-            form.put(route("company.warehousestocks.update", editingStock.id), {
+            form.put(route("warehousestocks.update", editingStock.id), {
                 onSuccess: closeModal,
             });
         } else if (modalType === "add") {
@@ -97,7 +97,7 @@ export default function Index({ stocks, warehouses, products, auth }) {
                 })),
             };
 
-            router.post(route("company.warehousestocks.storeMultiple"), payload, {
+            router.post(route("warehousestocks.storeMultiple"), payload, {
                 onSuccess: () => {
                     closeModal();
                     setStocksForm([{ warehouse_id: "", product_id: "", quantity: "" }]);
@@ -105,7 +105,7 @@ export default function Index({ stocks, warehouses, products, auth }) {
                 onError: () => { }, // errors are automatically populated in usePage().props.errors
             });
         } else if (modalType === "delete") {
-            router.delete(route("company.warehousestocks.destroy", editingStock.id), {
+            router.delete(route("warehousestocks.destroy", editingStock.id), {
                 onSuccess: closeModal,
             });
         }
@@ -115,32 +115,14 @@ export default function Index({ stocks, warehouses, products, auth }) {
 
     const filteredStocks = useMemo(() => {
         return stocks.filter((s) => {
-            // Normalize text
-            const searchLower = search.toLowerCase();
-            const warehouseFilterLower = warehouseFilter.toString().toLowerCase();
-            const productFilterLower = productFilter.toString().toLowerCase();
-    
-            // Search matches warehouse name OR product name
             const matchesSearch =
-                s.warehouse.name.toLowerCase().includes(searchLower) ||
-                s.product.name.toLowerCase().includes(searchLower);
-    
-            // Warehouse filter
-            const matchesWarehouse =
-                warehouseFilterLower === "all"
-                    ? true
-                    : s.warehouse_id.toString().toLowerCase() === warehouseFilterLower;
-    
-            // Product filter
-            const matchesProduct =
-                productFilterLower === "all"
-                    ? true
-                    : s.product_id.toString().toLowerCase() === productFilterLower;
-    
+                s.warehouse.name.toLowerCase().includes(search.toLowerCase()) ||
+                s.product.name.toLowerCase().includes(search.toLowerCase());
+            const matchesWarehouse = warehouseFilter === "all" ? true : s.warehouse_id === warehouseFilter;
+            const matchesProduct = productFilter === "all" ? true : s.product_id === productFilter;
             return matchesSearch && matchesWarehouse && matchesProduct;
         });
     }, [stocks, search, warehouseFilter, productFilter]);
-    
 
     const sortedStocks = useMemo(() => {
         let sortable = [...filteredStocks];
@@ -188,11 +170,16 @@ export default function Index({ stocks, warehouses, products, auth }) {
     const exportPDF = () => {
         const doc = new jsPDF();
         doc.text("Warehouse Stocks Report", 14, 10);
-        autoTable(doc, {
-            startY: 20,
-            head: [["#", "Warehouse", "Product", "Quantity"]],
-            body: sortedStocks.map((s, i) => [i + 1, s.warehouse.name, s.product.name, s.quantity]),
-        });
+        const head = auth.user.role === "admin"
+            ? [["#", "Warehouse", "Product", "Quantity", "Company"]]
+            : [["#", "Warehouse", "Product", "Quantity"]];
+
+        const body = sortedStocks.map((s, i) =>
+            auth.user.role === "admin"
+                ? [i + 1, s.warehouse.name, s.product.name, s.quantity, s.company?.name || "—"]
+                : [i + 1, s.warehouse.name, s.product.name, s.quantity]
+        );
+        autoTable(doc, { startY: 20, head, body });
         doc.save("stocks.pdf");
     };
 
@@ -230,6 +217,10 @@ export default function Index({ stocks, warehouses, products, auth }) {
                     <thead className="bg-gray-100 text-gray-700">
                         <tr>
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("id")}># {getSortArrow("id")}</th>
+                            {/* ✅ Show company column only for admin */}
+                            {auth.user.role === "admin" && (
+                                <th className="p-2 border cursor-pointer" onClick={() => requestSort("company_id")}>Company {getSortArrow("company_id")}</th>
+                            )}
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("warehouse_id")}>Warehouse {getSortArrow("warehouse_id")}</th>
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("product_id")}>Product {getSortArrow("product_id")}</th>
                             <th className="p-2 border cursor-pointer" onClick={() => requestSort("quantity")}>Quantity {getSortArrow("quantity")}</th>
@@ -241,6 +232,10 @@ export default function Index({ stocks, warehouses, products, auth }) {
                             paginatedStocks.map((s, index) => (
                                 <tr key={s.id} className="hover:bg-gray-50">
                                     <td className="p-2 border text-center">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                                    {/* ✅ Admin-only company column */}
+                                    {auth.user.role === "admin" && (
+                                        <td className="p-2 border text-center">{s.company?.name || "—"}</td>
+                                    )}
                                     <td className="p-2 border">{s.warehouse.name}</td>
                                     <td className="p-2 border">{s.product.name}</td>
                                     <td className="p-2 border text-center">{s.quantity}</td>

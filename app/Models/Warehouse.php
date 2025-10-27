@@ -50,7 +50,11 @@ class Warehouse extends Model
     {
         return $this->belongsTo(Company::class);
     }
-
+// ✅ Add this
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
     public function stocks()
     {
         return $this->hasMany(WarehouseStock::class);

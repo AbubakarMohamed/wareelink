@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\Warehouse;
 use App\Models\Product;
 use App\Models\WarehouseStock;
@@ -15,23 +16,37 @@ class WarehouseStockController extends Controller
 {
     public function index()
     {
-        $companyId = Auth::user()->company->id;
+        $user = Auth::user();
 
-        $stocks = WarehouseStock::where('company_id', $companyId)
-            ->with(['warehouse', 'product'])
-            ->get();
+        // ✅ Admin can view all company stocks
+        if ($user->role === 'admin') {
+            $stocks = WarehouseStock::with(['warehouse.company', 'product.company', 'company'])->get();
+            $warehouses = Warehouse::with('company')->get();
+            $products = Product::with('company')->get();
+            $companies = Company::all(); // ✅ Include all companies for admin
+        } else {
+            $companyId = $user->company->id;
 
-        $warehouses = Warehouse::where('company_id', $companyId)->get();
-        $products   = Product::where('company_id', $companyId)->get();
+            $stocks = WarehouseStock::where('company_id', $companyId)
+                ->with(['warehouse', 'product', 'company'])
+                ->get();
 
-        return Inertia::render('WarehouseStocks/Index', [
-            'stocks'     => $stocks,
+            $warehouses = Warehouse::where('company_id', $companyId)->get();
+            $products = Product::where('company_id', $companyId)->get();
+            $companies = []; // non-admin doesn’t need company data
+        }
+
+        return inertia('WarehouseStocks/Index', [
+            'stocks' => $stocks->load(['warehouse', 'product', 'company']),
             'warehouses' => $warehouses,
-            'products'   => $products,
+            'products' => $products,
+            'companies' => Company::all(),
+            'auth' => ['user' => Auth::user()],
+            'isAdmin' => Auth::user()->role === 'admin',
         ]);
+        
     }
 
-    // ✅ Handles single stock creation with proper validation
     public function store(Request $request)
     {
         $request->validate([
@@ -40,15 +55,15 @@ class WarehouseStockController extends Controller
             'quantity'     => 'required|integer|min:1',
         ]);
 
-        $companyId = Auth::user()->company->id;
+        $user = Auth::user();
+        $warehouse = Warehouse::findOrFail($request->warehouse_id);
+        $product = Product::findOrFail($request->product_id);
 
-        $warehouse = Warehouse::where('id', $request->warehouse_id)
-            ->where('company_id', $companyId)
-            ->firstOrFail();
+        if ($user->role !== 'admin' && $warehouse->company_id !== $user->company->id) {
+            abort(403, 'Unauthorized');
+        }
 
-        $product = Product::where('id', $request->product_id)
-            ->where('company_id', $companyId)
-            ->firstOrFail();
+        $companyId = $user->role === 'admin' ? $warehouse->company_id : $user->company->id;
 
         $currentStock = WarehouseStock::where('warehouse_id', $warehouse->id)
             ->where('product_id', $product->id)
@@ -62,9 +77,9 @@ class WarehouseStockController extends Controller
         $remaining = $product->stock - $totalAllocated;
 
         if ($request->quantity > $remaining) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors(['quantity' => "Cannot allocate {$request->quantity}. Only {$remaining} units remaining."]);
+            return back()->withInput()->withErrors([
+                'quantity' => "Cannot allocate {$request->quantity}. Only {$remaining} units remaining."
+            ]);
         }
 
         $newQuantity = $currentStock + $request->quantity;
@@ -73,15 +88,13 @@ class WarehouseStockController extends Controller
             [
                 'warehouse_id' => $warehouse->id,
                 'product_id'   => $product->id,
-                'company_id'   => $companyId, // ✅ FIX
+                'company_id'   => $companyId,
             ],
-            [
-                'quantity' => $newQuantity,
-            ]
+            ['quantity' => $newQuantity]
         );
 
         ActivityLog::record(
-            Auth::id(),
+            $user->id,
             'created',
             "Added {$request->quantity} units of product {$product->name} to warehouse {$warehouse->name}",
             $stock
@@ -91,11 +104,9 @@ class WarehouseStockController extends Controller
             ->with('success', 'Stock added successfully!');
     }
 
-    // ✅ Store multiple stocks with validation
     public function storeMultiple(Request $request)
     {
-        $companyId = auth()->user()->company->id;
-
+        $user = Auth::user();
         $stocksData = $request->input('stocks', []);
 
         foreach ($stocksData as $index => $stockData) {
@@ -105,13 +116,14 @@ class WarehouseStockController extends Controller
                 'quantity'     => 'required|integer|min:1',
             ])->validate();
 
-            $warehouse = Warehouse::where('id', $validated['warehouse_id'])
-                ->where('company_id', $companyId)
-                ->firstOrFail();
+            $warehouse = Warehouse::findOrFail($validated['warehouse_id']);
+            $product = Product::findOrFail($validated['product_id']);
 
-            $product = Product::where('id', $validated['product_id'])
-                ->where('company_id', $companyId)
-                ->firstOrFail();
+            if ($user->role !== 'admin' && $warehouse->company_id !== $user->company->id) {
+                abort(403, 'Unauthorized');
+            }
+
+            $companyId = $user->role === 'admin' ? $warehouse->company_id : $user->company->id;
 
             $currentStock = WarehouseStock::where('warehouse_id', $warehouse->id)
                 ->where('product_id', $product->id)
@@ -125,11 +137,10 @@ class WarehouseStockController extends Controller
             $remaining = $product->stock - $totalAllocated;
 
             if ($validated['quantity'] > $remaining) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors([
-                        "stocks.{$index}.quantity" => "Cannot allocate {$validated['quantity']} for product {$product->name}. Only {$remaining} units remaining."
-                    ]);
+                return back()->withInput()->withErrors([
+                    "stocks.{$index}.quantity" =>
+                        "Cannot allocate {$validated['quantity']} for product {$product->name}. Only {$remaining} units remaining."
+                ]);
             }
 
             $newQuantity = $currentStock + $validated['quantity'];
@@ -138,15 +149,13 @@ class WarehouseStockController extends Controller
                 [
                     'warehouse_id' => $warehouse->id,
                     'product_id'   => $product->id,
-                    'company_id'   => $companyId, // ✅ FIX
+                    'company_id'   => $companyId,
                 ],
-                [
-                    'quantity' => $newQuantity,
-                ]
+                ['quantity' => $newQuantity]
             );
 
             ActivityLog::record(
-                auth()->id(),
+                $user->id,
                 'created',
                 "Added {$validated['quantity']} units of product {$product->name} to warehouse {$warehouse->name}",
                 $stockRecord
@@ -157,12 +166,11 @@ class WarehouseStockController extends Controller
             ->with('success', count($stocksData) . " stocks added successfully!");
     }
 
-    // ✅ Update warehouse stock with proper validation
     public function update(Request $request, WarehouseStock $warehouseStock)
     {
-        $companyId = Auth::user()->company->id;
+        $user = Auth::user();
 
-        if ($warehouseStock->company_id !== $companyId) {
+        if ($user->role !== 'admin' && $warehouseStock->company_id !== $user->company->id) {
             abort(403, 'Unauthorized');
         }
 
@@ -172,9 +180,8 @@ class WarehouseStockController extends Controller
             'quantity'     => 'required|integer|min:0',
         ]);
 
-        $product = Product::where('id', $request->product_id)
-            ->where('company_id', $companyId)
-            ->firstOrFail();
+        $product = Product::findOrFail($request->product_id);
+        $companyId = $user->role === 'admin' ? $warehouseStock->company_id : $user->company->id;
 
         $totalAllocated = WarehouseStock::where('product_id', $product->id)
             ->where('company_id', $companyId)
@@ -184,20 +191,19 @@ class WarehouseStockController extends Controller
         $remaining = $product->stock - $totalAllocated;
 
         if ($request->quantity > $remaining) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors(['quantity' => "Cannot set quantity to {$request->quantity}. Only {$remaining} units remaining."]);
+            return back()->withInput()->withErrors([
+                'quantity' => "Cannot set quantity to {$request->quantity}. Only {$remaining} units remaining."
+            ]);
         }
 
         $warehouseStock->update([
             'warehouse_id' => $request->warehouse_id,
             'product_id'   => $request->product_id,
             'quantity'     => $request->quantity,
-            'company_id'   => $companyId, // ✅ keep company_id intact
         ]);
 
         ActivityLog::record(
-            Auth::id(),
+            $user->id,
             'updated',
             "Updated stock of product {$product->name} in warehouse {$warehouseStock->warehouse->name} to quantity {$request->quantity}",
             $warehouseStock
@@ -209,16 +215,16 @@ class WarehouseStockController extends Controller
 
     public function destroy(WarehouseStock $warehouseStock)
     {
-        $companyId = Auth::user()->company->id;
+        $user = Auth::user();
 
-        if ($warehouseStock->company_id !== $companyId) {
+        if ($user->role !== 'admin' && $warehouseStock->company_id !== $user->company->id) {
             abort(403, 'Unauthorized');
         }
 
         $warehouseStock->delete();
 
         ActivityLog::record(
-            Auth::id(),
+            $user->id,
             'deleted',
             "Deleted stock of product {$warehouseStock->product->name} from warehouse {$warehouseStock->warehouse->name}",
             $warehouseStock

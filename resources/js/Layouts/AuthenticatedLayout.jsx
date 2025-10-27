@@ -19,12 +19,15 @@ import {
     DocumentTextIcon,
     TruckIcon,
     ArchiveBoxIcon,
+    Bars3Icon,
+    XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 export default function AuthenticatedLayout({ header, children }) {
     const user = usePage().props.auth?.user;
     const [showSidebar, setShowSidebar] = useState(true);
     const [openSections, setOpenSections] = useState({});
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const toggleSection = (heading) => {
         setOpenSections((prev) => ({
@@ -36,7 +39,7 @@ export default function AuthenticatedLayout({ header, children }) {
     const menuItems = {
         admin: [
             {
-                heading: "🌍 General",
+                heading: "General",
                 items: [
                     {
                         label: "Dashboard",
@@ -53,30 +56,18 @@ export default function AuthenticatedLayout({ header, children }) {
                         label: "Users",
                         route: "admin.users.index",
                         icon: UserGroupIcon,
-                        badge: "12 new", // optional badge
+                        badge: "12 new",
                         description: "Manage platform users",
-                    },
-                    {
-                        label: "Shops",
-                        route: "admin.shops.index",
-                        icon: BuildingStorefrontIcon,
-                        description: "View & edit shop profiles",
-                    },
-                    {
-                        label: "Companies",
-                        route: "admin.companies.index",
-                        icon: BuildingOfficeIcon,
-                        description: "Corporate accounts",
                     },
                 ],
             },
             {
-                heading: "📦 Inventory",
+                heading: "Company",
                 items: [
                     {
                         label: "Warehouses",
                         route: "admin.warehouses.index",
-                        icon: CubeIcon,
+                        icon: BuildingOfficeIcon,
                         description: "Track warehouse capacity",
                     },
                     {
@@ -85,22 +76,69 @@ export default function AuthenticatedLayout({ header, children }) {
                         icon: ArchiveBoxIcon,
                         description: "Manage product catalog",
                     },
+                    {
+                        label: "Stock",
+                        route: "warehousestocks.index",
+                        icon: CubeIcon,
+                        description: "Manage product catalog",
+                    },
                 ],
             },
             {
-                heading: "⚙️ System",
+                heading: "Warehouse",
                 items: [
                     {
-                        label: "Settings",
-                        route: "settings.index",
-                        icon: Cog6ToothIcon,
-                        description: "Platform configurations",
+                        label: "Inventory",
+                        route: "admin.inventory.index",
+                        icon: CubeIcon,
+                        description: "Track warehouse capacity",
                     },
                     {
-                        label: "Logs",
-                        route: "admin.logs.index",
+                        label: "Invoices",
+                        route: "admin.invoices.index",
                         icon: DocumentTextIcon,
-                        description: "System audit logs",
+                        description: "Manage product catalog",
+                    },
+                    {
+                        label: "Shop Request",
+                        route: "admin.requests.index",
+                        icon: ClipboardDocumentListIcon,
+                        description: "Manage product catalog",
+                    },
+                    {
+                        label: "Report",
+                        route: "admin.warehouse.report",
+                        icon: DocumentTextIcon,
+                        description: "Manage product catalog",
+                    },
+                ],
+            },
+            {
+                heading: "Shop",
+                items: [
+                    {
+                        label: "Products",
+                        route: "admin.innventory.index",
+                        icon: ArchiveBoxIcon,
+                        description: "Track warehouse capacity",
+                    },
+                    {
+                        label: "Invoices",
+                        route: "admin.innvoices.index",
+                        icon: DocumentTextIcon,
+                        description: "Manage product catalog",
+                    },
+                    {
+                        label: "Requests",
+                        route: "admin.requestss.index",
+                        icon: ClipboardDocumentListIcon,
+                        description: "Manage product catalog",
+                    },
+                    {
+                        label: "Report",
+                        route: "admin.purchase-history",
+                        icon: DocumentTextIcon,
+                        description: "Manage product catalog",
                     },
                 ],
             },
@@ -116,39 +154,33 @@ export default function AuthenticatedLayout({ header, children }) {
                 heading: "Products",
                 items: [
                     { label: "Manage Products", route: "company.products.index", icon: CubeIcon },
-                    
                 ],
             },
             {
                 heading: "Warehouses",
                 items: [
                     { label: "Manage Warehouses", route: "company.warehouses.index", icon: BuildingOfficeIcon },
-                 
                 ],
             },
             {
                 heading: "Stocks",
                 items: [
                     { label: "Manage Stocks", route: "warehousestocks.index", icon: CubeIcon },
-                    
                 ],
             },
             {
                 heading: "Admins",
                 items: [
-                    
                     { label: "Warehouse Admins", route: "company.warehouse-admins.index", icon: UserGroupIcon },
                 ],
             },
             {
                 heading: "Reports",
                 items: [
-                    
                     { label: "Stock Reports", route: "company.stock-report.index", icon: Cog6ToothIcon },
                 ],
             },
         ],
-        
         warehouse_admin: [
             {
                 heading: "General",
@@ -166,10 +198,6 @@ export default function AuthenticatedLayout({ header, children }) {
                 heading: "Finance",
                 items: [{ label: "Invoices", route: "warehouse.invoices.index", icon: DocumentTextIcon }],
             },
-            // {
-            //     heading: "Logistics",
-            //     items: [{ label: "Shipping", route: "stock.index", icon: TruckIcon }],
-            // },
             {
                 heading: "Reports",
                 items: [{ label: "Reports", route: "warehouse.warehouse.report", icon: Cog6ToothIcon }],
@@ -182,55 +210,52 @@ export default function AuthenticatedLayout({ header, children }) {
             },
             {
                 heading: "Products",
-                items: [{ label: "Request Products", route: "shop.inventory.index", icon: CubeIcon }],
+                items: [{ label: "Request Products", route: "shop.innventory.index", icon: CubeIcon }],
             },
             {
                 heading: "Requests",
-                items: [{ label: "My Requests", route: "shop.requests.index", icon: ClipboardDocumentListIcon }],
+                items: [{ label: "My Requests", route: "shop.requestss.index", icon: ClipboardDocumentListIcon }],
             },
             {
                 heading: "Finance",
-                items: [{ label: "Invoices", route: "shop.invoices.index", icon: DocumentTextIcon }],
+                items: [{ label: "Invoices", route: "shop.innvoices.index", icon: DocumentTextIcon }],
             },
-            // {
-            //     heading: "Logistics",
-            //     items: [{ label: "Shipping", route: "stock.index", icon: TruckIcon }],
-            // },
             {
                 heading: "Reports",
                 items: [{ label: "Reports", route: "shop.purchase-history", icon: Cog6ToothIcon }],
             },
-            // {
-            //     heading: "Operations",
-            //     items: [
-            //         { label: "Request Products", route: "requests.index", icon: BuildingStorefrontIcon },
-            //     ],
-            // },
         ],
     };
 
     const currentMenu = menuItems[user?.role] || [];
 
     return (
-        <div className="h-screen bg-gray-100 flex">
-            {/* Sidebar */}
+        <div className="h-screen bg-gray-100 flex flex-col sm:flex-row">
+            {/* Sidebar (desktop + mobile) */}
             <aside
-                className={`${showSidebar ? "w-64" : "w-16"} bg-white border-r transition-all duration-200`}
+                className={`fixed sm:relative z-30 h-full bg-white border-r transition-all duration-200 transform ${
+                    mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+                } sm:translate-x-0 ${showSidebar ? "w-64" : "w-16"}`}
             >
-                <div className="flex items-center justify-between p-4">
+                <div className="flex items-center justify-between p-4 border-b">
                     <Link href={route("dashboard")}>
                         <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800" />
                     </Link>
                     <button
-                        className="text-gray-500 hover:text-gray-700"
+                        className="text-gray-500 hover:text-gray-700 sm:hidden"
+                        onClick={() => setMobileMenuOpen(false)}
+                    >
+                        <XMarkIcon className="w-6 h-6" />
+                    </button>
+                    <button
+                        className="hidden sm:block text-gray-500 hover:text-gray-700"
                         onClick={() => setShowSidebar((prev) => !prev)}
                     >
                         {showSidebar ? "«" : "»"}
                     </button>
                 </div>
 
-                {/* Sidebar Sections */}
-                <nav className="mt-6 space-y-2">
+                <nav className="mt-6 space-y-2 overflow-y-auto">
                     {currentMenu.map((section) => {
                         const isOpen = openSections[section.heading] ?? true;
                         return (
@@ -271,14 +296,23 @@ export default function AuthenticatedLayout({ header, children }) {
             </aside>
 
             {/* Main Content */}
-            <div className="flex flex-1 flex-col min-h-0">
+            <div className="flex flex-col flex-1 min-h-0">
                 {/* Top Bar */}
                 <nav className="border-b border-gray-100 bg-white px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16 flex-shrink-0">
-                    {header && (
-                        <h2 className="text-lg font-semibold text-gray-800">
-                            {header}
-                        </h2>
-                    )}
+                    <div className="flex items-center space-x-2">
+                        <button
+                            className="sm:hidden text-gray-600 hover:text-gray-800"
+                            onClick={() => setMobileMenuOpen(true)}
+                        >
+                            <Bars3Icon className="h-6 w-6" />
+                        </button>
+                        {header && (
+                            <h2 className="text-lg font-semibold text-gray-800 truncate max-w-[70vw] sm:max-w-none">
+                                {header}
+                            </h2>
+                        )}
+                    </div>
+
                     <Dropdown>
                         <Dropdown.Trigger>
                             <span className="inline-flex rounded-md">
@@ -305,11 +339,7 @@ export default function AuthenticatedLayout({ header, children }) {
 
                         <Dropdown.Content>
                             <Dropdown.Link href={route("profile.edit")}>Profile</Dropdown.Link>
-                            <Dropdown.Link
-                                href={route("logout")}
-                                method="post"
-                                as="button"
-                            >
+                            <Dropdown.Link href={route("logout")} method="post" as="button">
                                 Log Out
                             </Dropdown.Link>
                         </Dropdown.Content>
@@ -317,9 +347,7 @@ export default function AuthenticatedLayout({ header, children }) {
                 </nav>
 
                 {/* Scrollable Page Content */}
-                <main className="flex-1 overflow-y-auto p-6">
-                    {children}
-                </main>
+                <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
             </div>
         </div>
     );

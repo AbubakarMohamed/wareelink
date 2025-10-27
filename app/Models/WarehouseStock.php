@@ -27,7 +27,7 @@ class WarehouseStock extends Model
     {
         parent::boot();
 
-        // ✅ Auto-assign company_id
+        // ✅ Auto-assign company_id if user belongs to a company
         static::creating(function ($stock) {
             if (auth()->check() && auth()->user()->company) {
                 $stock->company_id = auth()->user()->company->id;
@@ -35,15 +35,30 @@ class WarehouseStock extends Model
         });
 
         static::created(function ($stock) {
-            ActivityLog::record(auth()->id(), 'created', "Added stock for product ID {$stock->product_id} in warehouse ID {$stock->warehouse_id}", $stock);
+            ActivityLog::record(
+                auth()->id(),
+                'created',
+                "Added stock for product ID {$stock->product_id} in warehouse ID {$stock->warehouse_id}",
+                $stock
+            );
         });
 
         static::updated(function ($stock) {
-            ActivityLog::record(auth()->id(), 'updated', "Updated stock for product ID {$stock->product_id} in warehouse ID {$stock->warehouse_id}", $stock);
+            ActivityLog::record(
+                auth()->id(),
+                'updated',
+                "Updated stock for product ID {$stock->product_id} in warehouse ID {$stock->warehouse_id}",
+                $stock
+            );
         });
 
         static::deleted(function ($stock) {
-            ActivityLog::record(auth()->id(), 'deleted', "Removed stock for product ID {$stock->product_id} in warehouse ID {$stock->warehouse_id}", $stock);
+            ActivityLog::record(
+                auth()->id(),
+                'deleted',
+                "Removed stock for product ID {$stock->product_id} in warehouse ID {$stock->warehouse_id}",
+                $stock
+            );
         });
     }
 
@@ -62,5 +77,9 @@ class WarehouseStock extends Model
         return $this->belongsTo(Product::class);
     }
 
-
+    // ✅ Add this to fix the error
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 }

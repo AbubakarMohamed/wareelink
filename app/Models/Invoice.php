@@ -11,7 +11,7 @@ class Invoice extends Model
         'warehouse_id',
         'shop_id',
         'amount',
-        'status', // e.g. unpaid, paid
+        'status', // unpaid, paid
     ];
 
     public function request()
@@ -21,11 +21,24 @@ class Invoice extends Model
 
     public function shop()
     {
-        return $this->belongsTo(User::class, 'shop_id'); // if shops are users
+        return $this->belongsTo(User::class, 'shop_id'); // shops are users
     }
 
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    // Company via warehouse
+    public function company()
+    {
+        return $this->hasOneThrough(
+            \App\Models\Company::class,   // final model
+            \App\Models\Warehouse::class, // intermediate model
+            'id',        // Foreign key on Warehouse table (Invoice.warehouse_id -> Warehouse.id)
+            'id',        // Foreign key on Company table (Warehouse.company_id -> Company.id)
+            'warehouse_id', // Local key on Invoice table
+            'company_id'    // Local key on Warehouse table
+        );
     }
 }

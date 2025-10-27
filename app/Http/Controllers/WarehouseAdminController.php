@@ -10,67 +10,72 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class WarehouseAdminController extends Controller
 {
-    // Show all warehouse admins
+    /**
+     * Display a listing of warehouse admins for the authenticated company.
+     */
     public function index()
     {
-        $company = auth()->user()->company;
+        $company = Auth::user()->company;
 
         $warehouseAdmins = WarehouseAdmin::with('user', 'warehouse')
-            ->whereHas('warehouse', function ($q) use ($company) {
-                $q->where('company_id', $company->id);
-            })
+            ->whereHas('warehouse', fn($q) => $q->where('company_id', $company->id))
             ->get();
 
         return Inertia::render('Company/WarehouseAdminIndex', [
             'warehouseAdmins' => $warehouseAdmins,
-            'auth' => auth()->user(),
+            'auth' => Auth::user(),
             'flash' => session()->get('success'),
-            'warehouses' => $company->warehouses, // needed for modal select
+            'warehouses' => $company->warehouses, // For modal dropdowns
         ]);
     }
 
-    // Show create form (optional, may not be used if modal)
+    /**
+     * Show the form for creating a warehouse admin (if using separate page).
+     */
     public function create()
     {
-        $warehouses = auth()->user()->company->warehouses;
+        $warehouses = Auth::user()->company->warehouses;
+
         return Inertia::render('Company/WarehouseAdminCreate', [
             'warehouses' => $warehouses,
-            'auth' => auth()->user(),
+            'auth' => Auth::user(),
         ]);
     }
 
-    // Store single admin
+    /**
+     * Store a single warehouse admin.
+     */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
             'warehouse_id' => 'required|exists:warehouses,id',
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        $user = $this->createUser($validated);
 
         WarehouseAdmin::create([
             'user_id' => $user->id,
-            'warehouse_id' => $request->warehouse_id,
+            'warehouse_id' => $validated['warehouse_id'],
         ]);
 
         return redirect()->route('company.warehouse-admins.index')
-            ->with('success', 'Warehouse Admin created successfully.');
+            ->with('success', "Warehouse Admin '{$validated['name']}' created successfully.");
     }
 
-    // Store multiple admins at once
+    /**
+     * Store multiple warehouse admins at once.
+     */
     public function storeMultiple(Request $request)
     {
-        $company = auth()->user()->company;
+        $company = Auth::user()->company;
+
         if (!$company) {
             abort(400, 'No company record found for this user.');
         }
@@ -78,7 +83,7 @@ class WarehouseAdminController extends Controller
         $adminsData = $request->input('admins', []);
 
         if (empty($adminsData)) {
-            return redirect()->back()->withErrors('No admins to add.');
+            return redirect()->back()->withErrors('No admins provided for creation.');
         }
 
         $createdCount = 0;
@@ -97,11 +102,7 @@ class WarehouseAdminController extends Controller
 
             $validated = $validator->validated();
 
-            $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-            ]);
+            $user = $this->createUser($validated);
 
             WarehouseAdmin::create([
                 'user_id' => $user->id,
@@ -115,14 +116,30 @@ class WarehouseAdminController extends Controller
             ->with('success', "$createdCount warehouse admin(s) created successfully.");
     }
 
-    // Delete admin
+    /**
+     * Delete a warehouse admin and the associated user account.
+     */
     public function destroy($id)
     {
         $admin = WarehouseAdmin::findOrFail($id);
-        $admin->user()->delete(); // delete user as well
+
+        $adminName = $admin->user->name;
+        $admin->user()->delete(); // Remove the user
         $admin->delete();
 
         return redirect()->route('company.warehouse-admins.index')
-            ->with('success', 'Warehouse Admin deleted successfully.');
+            ->with('success', "Warehouse Admin '{$adminName}' deleted successfully.");
+    }
+
+    /**
+     * Helper method to create a user with hashed password.
+     */
+    private function createUser(array $data): User
+    {
+        return User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+        ]);
     }
 }

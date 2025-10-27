@@ -8,7 +8,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export default function Index() {
-    const { warehouses } = usePage().props;
+    const { warehouses, userRole, companies = [] } = usePage().props; // 👈 added companies for admin
 
     // Modal & Form States
     const [isModalOpen, setModalOpen] = useState(false);
@@ -17,7 +17,7 @@ export default function Index() {
 
     // Multi-warehouse form state
     const [warehousesForm, setWarehousesForm] = useState([
-        { name: "", location: "", capacity: "", status: "active" },
+        { name: "", location: "", capacity: "", status: "active", company_id: "" },
     ]);
 
     // Single warehouse form for editing
@@ -26,6 +26,7 @@ export default function Index() {
         location: "",
         capacity: "",
         status: "active",
+        company_id: "",
     });
 
     // Filters/Search/Pagination/Sorting states
@@ -47,10 +48,11 @@ export default function Index() {
                 location: warehouse.location || "",
                 capacity: warehouse.capacity || "",
                 status: warehouse.status || "active",
+                company_id: warehouse.company_id || "",
             });
         } else if (type === "add") {
             setEditingWarehouse(null);
-            setWarehousesForm([{ name: "", location: "", capacity: "", status: "active" }]);
+            setWarehousesForm([{ name: "", location: "", capacity: "", status: "active", company_id: "" }]);
         } else if (type === "delete") {
             setEditingWarehouse(warehouse);
         }
@@ -78,7 +80,7 @@ export default function Index() {
     };
 
     const addWarehouseRow = () => {
-        setWarehousesForm([...warehousesForm, { name: "", location: "", capacity: "", status: "active" }]);
+        setWarehousesForm([...warehousesForm, { name: "", location: "", capacity: "", status: "active", company_id: "" }]);
     };
 
     const removeWarehouseRow = (index) => {
@@ -173,13 +175,16 @@ export default function Index() {
 
         autoTable(doc, {
             startY: 40,
-            head: [["#", "Name", "Location", "Capacity", "Status"]],
+            head: userRole === "admin"
+                ? [["#", "Name", "Location", "Capacity", "Status", "Company"]]
+                : [["#", "Name", "Location", "Capacity", "Status"]],
             body: sortedWarehouses.map((w, index) => [
                 index + 1,
                 w.name,
                 w.location ?? "-",
                 w.capacity ?? 0,
                 w.status,
+                ...(userRole === "admin" ? [w.company?.name ?? "-"] : []),
             ]),
         });
 
@@ -225,6 +230,7 @@ export default function Index() {
                             <th className="p-2 border cursor-pointer">Location {getSortArrow("location")}</th>
                             <th className="p-2 border cursor-pointer">Capacity {getSortArrow("capacity")}</th>
                             <th className="p-2 border cursor-pointer">Status {getSortArrow("status")}</th>
+                            {userRole === "admin" && <th className="p-2 border">Company</th>} {/* 👈 New column */}
                             <th className="p-2 border">Actions</th>
                         </tr>
                     </thead>
@@ -241,6 +247,9 @@ export default function Index() {
                                             {warehouse.status}
                                         </span>
                                     </td>
+                                    {userRole === "admin" && (
+                                        <td className="p-2 border text-center">{warehouse.company?.name ?? "-"}</td>
+                                    )}
                                     <td className="p-2 border text-center">
                                         <Menu as="div" className="relative inline-block text-left">
                                             <Menu.Button className="px-2 py-1 rounded hover:bg-gray-100">...</Menu.Button>
@@ -272,7 +281,7 @@ export default function Index() {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={6} className="p-4 text-center text-gray-500">No warehouses found.</td>
+                                <td colSpan={userRole === "admin" ? 7 : 6} className="p-4 text-center text-gray-500">No warehouses found.</td>
                             </tr>
                         )}
                     </tbody>
@@ -327,6 +336,16 @@ export default function Index() {
                                                                 <option value="active">Active</option>
                                                                 <option value="inactive">Inactive</option>
                                                             </select>
+
+                                                            {/* 👇 Only show company select if user is admin */}
+                                                            {userRole === "admin" && (
+                                                                <select name="company_id" value={w.company_id} onChange={(e) => handleWarehouseChange(index, e)} className="px-3 py-2 border rounded w-full">
+                                                                    <option value="">Select Company</option>
+                                                                    {companies.map((c) => (
+                                                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ))
@@ -339,6 +358,16 @@ export default function Index() {
                                                         <option value="active">Active</option>
                                                         <option value="inactive">Inactive</option>
                                                     </select>
+
+                                                    {/* 👇 Admin only company select for edit */}
+                                                    {userRole === "admin" && (
+                                                        <select name="company_id" value={form.company_id} onChange={handleChange} className="px-3 py-2 border rounded w-full">
+                                                            <option value="">Select Company</option>
+                                                            {companies.map((c) => (
+                                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    )}
                                                 </div>
                                             )}
                                             {modalType === "add" && (

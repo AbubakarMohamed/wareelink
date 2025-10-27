@@ -26,6 +26,10 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+use Illuminate\Http\Request;
+use App\Models\Company;
+use App\Models\Warehouse;
+
 
 use App\Http\Controllers\Warehouse\InventoryController;
 // use App\Http\Controllers\Warehouse\RequestController;
@@ -318,42 +322,93 @@ Route::get('/warehouse-report', [WarehouseReportController::class, 'index'])
     ->name('shop.')
     ->group(function () {
         // ✅ Inventory visible to shops
-        Route::get('inventory', [\App\Http\Controllers\Shop\ShopInventoryController::class, 'index'])
-            ->name('inventory.index');
+        Route::get('innventory', [\App\Http\Controllers\Shop\ShopInventoryController::class, 'index'])
+            ->name('innventory.index');
 
         // ✅ Requests (shop placing requests)
-        Route::post('requests', [\App\Http\Controllers\Shop\ShopRequestController::class, 'store'])
-            ->name('requests.store');
+        Route::post('requestss', [\App\Http\Controllers\Shop\ShopRequestController::class, 'store'])
+            ->name('requestss.store');
         
 
-            Route::post('requests/{id}/cancel', [\App\Http\Controllers\Shop\ShopRequestController::class, 'cancel'])
-            ->name('requests.cancel');
+            Route::post('requestss/{id}/cancel', [\App\Http\Controllers\Shop\ShopRequestController::class, 'cancel'])
+            ->name('requestss.cancel');
         
 
         // ✅ Requests List (shop can view their submitted requests)
-        Route::get('requests', [\App\Http\Controllers\Shop\ShopRequestController::class, 'index'])
-            ->name('requests.index');
+        Route::get('requestss', [\App\Http\Controllers\Shop\ShopRequestController::class, 'index'])
+            ->name('requestss.index');
 
-            Route::get('invoices', [\App\Http\Controllers\Shop\ShopInvoiceController::class, 'index'])
-            ->name('invoices.index');
+            Route::get('innvoices', [\App\Http\Controllers\Shop\ShopInvoiceController::class, 'index'])
+            ->name('innvoices.index');
 
-        Route::put('invoices/{invoice}/pay', [\App\Http\Controllers\Shop\ShopInvoiceController::class, 'pay'])
+        Route::put('innvoices/{invoice}/pay', [\App\Http\Controllers\Shop\ShopInvoiceController::class, 'pay'])
             ->name('invoices.pay');
 
             Route::get('purchase-history', [\App\Http\Controllers\Shop\ShopPurchaseHistoryController::class, 'index'])
             ->name('purchase-history');
     });
 
-    
-// routes/web.php
-
 
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('shops', \App\Http\Controllers\Admin\ShopController::class);
     Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
     Route::resource('warehouses', WarehouseController::class);
+    Route::resource('products', ProductController::class);
+    Route::resource('inventory', InventoryController::class);
+    
+
+            
+    Route::get('requests', [\App\Http\Controllers\Warehouse\WarehouseRequestController::class, 'index'])
+            ->name('requests.index');
+
+        Route::put('requests/{request}/approve', [\App\Http\Controllers\Warehouse\WarehouseRequestController::class, 'approve'])
+            ->name('requests.approve');
+
+        Route::put('requests/{request}/reject', [\App\Http\Controllers\Warehouse\WarehouseRequestController::class, 'reject'])
+            ->name('requests.reject');
+    
     Route::resource('invoices', InvoiceController::class);
+
+    Route::get('/warehouse-report', [WarehouseReportController::class, 'index'])
+    ->name('warehouse.report');
+
+    Route::get('innventory', [\App\Http\Controllers\Shop\ShopInventoryController::class, 'index'])
+            ->name('innventory.index');
+    Route::get('requestss', [\App\Http\Controllers\Shop\ShopRequestController::class, 'index'])
+            ->name('requestss.index');
+    
+    Route::get('innvoices', [\App\Http\Controllers\Shop\ShopInvoiceController::class, 'index'])
+            ->name('innvoices.index');
+
+    Route::put('innvoices/{invoice}/pay', [\App\Http\Controllers\Shop\ShopInvoiceController::class, 'pay'])
+            ->name('invoices.pay');
+
+    Route::get('purchase-history', [\App\Http\Controllers\Shop\ShopPurchaseHistoryController::class, 'index'])
+        ->name('purchase-history');
+
+
 });
+
+
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    // ✅ Get all companies
+    Route::get('/api/companies', function () {
+        return response()->json(
+            \App\Models\Company::select('id', 'name')->get()
+        );
+    });
+
+    // ✅ Get warehouses belonging to a company
+    Route::get('/api/companies/{company}/warehouses', function ($companyId) {
+        return response()->json(
+            \App\Models\Warehouse::where('company_id', $companyId)
+                ->select('id', 'name')
+                ->get()
+        );
+    });
+});
+
 
 /*
 |--------------------------------------------------------------------------|

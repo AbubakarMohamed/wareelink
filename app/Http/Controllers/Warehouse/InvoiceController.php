@@ -10,66 +10,73 @@ use Inertia\Inertia;
 
 class InvoiceController extends Controller
 {
-    // List all invoices (only for warehouse admin)
-public function index()
-{
-    $user = auth()->user();
+    // List all invoices (warehouse admins see theirs, admin sees all)
+    public function index()
+    {
+        $user = auth()->user();
 
-    // Get warehouse IDs this admin manages
-    $warehouseIds = $user->managedWarehouses()->pluck('warehouses.id');
+        if ($user->role === 'admin') {
+            // Admin sees all invoices
+            $invoices = Invoice::with([
+                'request.stock.product',
+                'shop',
+                'warehouse',
+                'company' // via warehouse
+            ])->latest()->get();
+        } else {
+            // Warehouse admin: only invoices for their warehouses
+            $warehouseIds = $user->managedWarehouses()->pluck('warehouses.id');
 
-    if ($warehouseIds->isEmpty()) {
-        $invoices = collect(); // empty collection
-    } else {
-        // Fetch only invoices for these warehouses
-        $invoices = Invoice::whereIn('warehouse_id', $warehouseIds)
-            ->with(['request.stock.product', 'shop', 'warehouse'])
-            ->latest()
-            ->get();
+            if ($warehouseIds->isEmpty()) {
+                $invoices = collect();
+            } else {
+                $invoices = Invoice::whereIn('warehouse_id', $warehouseIds)
+                    ->with([
+                        'request.stock.product',
+                        'shop',
+                        'warehouse',
+                        'company'
+                    ])->latest()->get();
+            }
+        }
+
+        return Inertia::render('Warehouse/Invoices/Index', [
+            'invoices' => $invoices,
+            'auth'     => ['user' => $user],
+            'flash'    => session()->only(['success', 'error']),
+        ]);
     }
 
-    return \Inertia\Inertia::render('Warehouse/Invoices/Index', [
-        'invoices' => $invoices,
-        'auth'     => ['user' => $user],
-        'flash'    => session()->only(['success', 'error']),
-    ]);
-}
-
-
-
+    // Store a new invoice
     public function store(HttpRequest $request)
-{
-    $request->validate([
-        'request_id' => 'required|exists:requests,id',
-    ]);
+    {
+        $request->validate([
+            'request_id' => 'required|exists:requests,id',
+        ]);
 
-    $shopRequest = ShopRequest::with('stock.product', 'stock.warehouse')
-        ->findOrFail($request->request_id);
+        $shopRequest = ShopRequest::with('stock.product', 'stock.warehouse')
+            ->findOrFail($request->request_id);
 
+        if ($shopRequest->status !== 'approved') {
+            return back()->with('error', 'Invoice can only be created for approved requests.');
+        }
 
+        if (Invoice::where('request_id', $shopRequest->id)->exists()) {
+            return back()->with('error', 'Invoice already exists for this request.');
+        }
 
-    if ($shopRequest->status !== 'approved') {
-        return back()->with('error', 'Invoice can only be created for approved requests.');
+        $amount = $shopRequest->quantity * ($shopRequest->stock->product->price ?? 0);
+
+        Invoice::create([
+            'request_id'   => $shopRequest->id,
+            'warehouse_id' => $shopRequest->stock->warehouse_id,
+            'shop_id'      => $shopRequest->shop_id,
+            'amount'       => $amount,
+            'status'       => 'unpaid',
+        ]);
+
+        $shopRequest->update(['status' => 'invoiced']);
+
+        return back()->with('success', 'Invoice created successfully.');
     }
-
-    if (Invoice::where('request_id', $shopRequest->id)->exists()) {
-        return back()->with('error', 'Invoice already exists for this request.');
-    }
-
-    $amount = $shopRequest->quantity * ($shopRequest->stock->product->price ?? 0);
-
-    Invoice::create([
-        'request_id'   => $shopRequest->id,
-        'warehouse_id' => $shopRequest->stock->warehouse_id,
-        'shop_id'      => $shopRequest->shop_id,
-        'amount'       => $amount,
-        'status'       => 'unpaid',
-    ]);
-
-
-    $shopRequest->update(['status' => 'invoiced']);
-
-    return back()->with('success', 'Invoice created successfully.');
-}
-
 }

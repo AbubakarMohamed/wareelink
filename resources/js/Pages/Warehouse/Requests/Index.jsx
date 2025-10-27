@@ -6,6 +6,9 @@ export default function RequestsIndex() {
     const { requests: initialRequests, auth, flash } = usePage().props;
     const [requests, setRequests] = useState(initialRequests);
 
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [selectedRequestId, setSelectedRequestId] = useState(null);
+
     const handleAction = (id, action) => {
         if (!confirm(`Are you sure you want to ${action} this request?`)) return;
 
@@ -30,18 +33,25 @@ export default function RequestsIndex() {
     };
 
     const handleInvoice = (id) => {
-        if (!confirm("Do you want to create an invoice for this request?")) return;
+        setSelectedRequestId(id);
+        setShowInvoiceModal(true);
+    };
+
+    const confirmInvoice = () => {
+        if (!selectedRequestId) return;
 
         router.post(
             route("warehouse.invoices.store"),
-            { request_id: id },
+            { request_id: selectedRequestId },
             {
                 onSuccess: () => {
                     setRequests((prev) =>
                         prev.map((req) =>
-                            req.id === id ? { ...req, status: "invoiced" } : req
+                            req.id === selectedRequestId ? { ...req, status: "invoiced" } : req
                         )
                     );
+                    setShowInvoiceModal(false);
+                    setSelectedRequestId(null);
                 },
                 onError: (errors) => {
                     alert(errors?.message || "Failed to create invoice");
@@ -50,8 +60,15 @@ export default function RequestsIndex() {
         );
     };
 
+    const cancelInvoice = () => {
+        setShowInvoiceModal(false);
+        setSelectedRequestId(null);
+    };
+
+    const isAdmin = auth.user.role === "admin";
+
     return (
-        <AuthenticatedLayout user={auth.user}>
+        <AuthenticatedLayout user={auth.user} header={<h2 className="text-xl font-semibold text-gray-800">Shop Requests</h2>}>
             <Head title="Shop Requests" />
 
             <div className="p-6">
@@ -71,12 +88,14 @@ export default function RequestsIndex() {
                 <table className="min-w-full bg-white border rounded">
                     <thead>
                         <tr className="bg-gray-100">
-                            <th className="px-4 py-2 border">Shop</th>
-                            <th className="px-4 py-2 border">Product</th>
-                            <th className="px-4 py-2 border">Warehouse</th>
-                            <th className="px-4 py-2 border">Quantity</th>
-                            <th className="px-4 py-2 border">Status</th>
-                            <th className="px-4 py-2 border">Action</th>
+                            <th className="px-4 py-2 border text-left">Shop</th>
+                            <th className="px-4 py-2 border text-left">Performance</th> {/* ✅ new column */}
+                            {isAdmin && <th className="px-4 py-2 border text-left">Company</th>}
+                            <th className="px-4 py-2 border text-left">Product</th>
+                            <th className="px-4 py-2 border text-left">Warehouse</th>
+                            <th className="px-4 py-2 border text-left">Quantity</th>
+                            <th className="px-4 py-2 border text-left">Status</th>
+                            <th className="px-4 py-2 border text-left">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -84,12 +103,19 @@ export default function RequestsIndex() {
                             requests.map((req) => (
                                 <tr key={req.id}>
                                     <td className="px-4 py-2 border">{req.shop?.name}</td>
+                                    <td className="px-4 py-2 border">
+                                        {req.shop_performance != null ? `${req.shop_performance}%` : "N/A"}
+                                    </td> {/* ✅ render performance */}
+                                    {isAdmin && (
+                                        <td className="px-4 py-2 border">
+                                            {req.stock?.warehouse?.company?.name || "-"}
+                                        </td>
+                                    )}
                                     <td className="px-4 py-2 border">{req.stock?.product?.name}</td>
                                     <td className="px-4 py-2 border">{req.stock?.warehouse?.name}</td>
                                     <td className="px-4 py-2 border">{req.quantity}</td>
                                     <td className="px-4 py-2 border capitalize">{req.status}</td>
-                                    <td className="px-4 py-2 border text-center">
-                                        {/* Approve/Reject Buttons */}
+                                    <td className="px-4 py-2 border text-left">
                                         {req.status === "pending" && (
                                             <>
                                                 <button
@@ -107,7 +133,6 @@ export default function RequestsIndex() {
                                             </>
                                         )}
 
-                                        {/* Create Invoice Button */}
                                         {(req.status === "approved" || req.status === "invoiced") && (
                                             <button
                                                 onClick={() => handleInvoice(req.id)}
@@ -126,10 +151,7 @@ export default function RequestsIndex() {
                             ))
                         ) : (
                             <tr>
-                                <td
-                                    colSpan="6"
-                                    className="px-4 py-2 border text-center text-gray-500"
-                                >
+                                <td colSpan={isAdmin ? 8 : 7} className="px-4 py-2 border text-center text-gray-500">
                                     No requests found.
                                 </td>
                             </tr>
@@ -137,6 +159,29 @@ export default function RequestsIndex() {
                     </tbody>
                 </table>
             </div>
+
+            {showInvoiceModal && (
+                <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
+                        <h2 className="text-lg font-semibold mb-4">Create Invoice</h2>
+                        <p>Do you want to create an invoice for this request?</p>
+                        <div className="mt-6 flex justify-end space-x-4">
+                            <button
+                                onClick={cancelInvoice}
+                                className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmInvoice}
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

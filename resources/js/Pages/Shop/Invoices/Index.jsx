@@ -8,6 +8,8 @@ export default function ShopInvoicesIndex() {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState(null);
 
+    const isAdmin = auth.user?.role === "admin";
+
     const openModal = (invoice) => {
         setSelectedInvoice(invoice);
         setIsOpen(true);
@@ -26,11 +28,20 @@ export default function ShopInvoicesIndex() {
     };
 
     return (
-        <AuthenticatedLayout user={auth.user}>
-            <Head title="My Invoices" />
+        <AuthenticatedLayout
+            user={auth.user}
+            header={
+                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                    {isAdmin ? "All Invoices" : "My Invoices"}
+                </h2>
+            }
+        >
+            <Head title={isAdmin ? "All Invoices" : "My Invoices"} />
 
             <div className="p-6">
-                <h2 className="text-xl font-bold mb-4">My Invoices</h2>
+                <h2 className="text-xl font-bold mb-4">
+                    {isAdmin ? "All Invoices" : "My Invoices"}
+                </h2>
 
                 {flash.success && (
                     <div className="bg-green-100 text-green-800 p-2 rounded mb-4">
@@ -43,52 +54,93 @@ export default function ShopInvoicesIndex() {
                     </div>
                 )}
 
-                <table className="min-w-full bg-white border rounded">
-                    <thead>
-                        <tr className="bg-gray-100">
-                            <th className="px-4 py-2 border">Invoice #</th>
-                            <th className="px-4 py-2 border">Product</th>
-                            <th className="px-4 py-2 border">Warehouse</th>
-                            <th className="px-4 py-2 border">Quantity</th>
-                            <th className="px-4 py-2 border">Amount</th>
-                            <th className="px-4 py-2 border">Status</th>
-                            <th className="px-4 py-2 border">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {invoices.length > 0 ? (
-                            invoices.map((invoice) => (
-                                <tr key={invoice.id}>
-                                    <td className="px-4 py-2 border">#{invoice.id}</td>
-                                    <td className="px-4 py-2 border">{invoice.request?.stock?.product?.name}</td>
-                                    <td className="px-4 py-2 border">{invoice.warehouse?.name}</td>
-                                    <td className="px-4 py-2 border">{invoice.request?.quantity}</td>
-                                    <td className="px-4 py-2 border">KSh {Number(invoice.amount).toLocaleString()}</td>
-                                    <td className="px-4 py-2 border capitalize">{invoice.status}</td>
-                                    <td className="px-4 py-2 border text-center">
-                                        {invoice.status === "unpaid" && (
-                                            <button
-                                                onClick={() => openModal(invoice)}
-                                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded"
-                                            >
-                                                Pay
-                                            </button>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full bg-white border rounded shadow-sm">
+                        <thead>
+                            <tr className="bg-gray-100 text-sm font-semibold text-gray-700">
+                                <th className="px-4 py-2 border text-left">Invoice</th>
+                                {isAdmin && (
+                                    <th className="px-4 py-2 border text-left">Shop</th>
+                                )}
+                                <th className="px-4 py-2 border text-left">Product</th>
+                                <th className="px-4 py-2 border text-left">Warehouse</th>
+                                <th className="px-4 py-2 border text-left">Quantity</th>
+                                <th className="px-4 py-2 border text-left">Amount</th>
+                                <th className="px-4 py-2 border text-left">Status</th>
+                                <th className="px-4 py-2 border text-left">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invoices.length > 0 ? (
+                                invoices.map((invoice) => (
+                                    <tr
+                                        key={invoice.id}
+                                        className="hover:bg-gray-50 transition"
+                                    >
+                                        <td className="px-4 py-2 border">{invoice.id}</td>
+
+                                        {/* ✅ Show Shop Column for Admin */}
+                                        {isAdmin && (
+                                            <td className="px-4 py-2 border">
+                                                {invoice.shop?.name ||
+                                                    invoice.shop?.email ||
+                                                    "N/A"}
+                                            </td>
                                         )}
+
+                                        <td className="px-4 py-2 border">
+                                            {invoice.request?.stock?.product?.name || "—"}
+                                        </td>
+                                        <td className="px-4 py-2 border">
+                                            {invoice.warehouse?.name || "—"}
+                                        </td>
+                                        <td className="px-4 py-2 border">
+                                            {invoice.request?.quantity || 0}
+                                        </td>
+                                        <td className="px-4 py-2 border font-medium">
+                                            KSh {Number(invoice.amount).toLocaleString()}
+                                        </td>
+                                        <td
+                                            className={`px-4 py-2 border capitalize ${
+                                                invoice.status === "paid"
+                                                    ? "text-green-600 font-semibold"
+                                                    : "text-yellow-600 font-medium"
+                                            }`}
+                                        >
+                                            {invoice.status}
+                                        </td>
+                                        <td className="px-4 py-2 border text-left">
+                                            {invoice.status === "unpaid" ? (
+                                                <button
+                                                    onClick={() => openModal(invoice)}
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded transition"
+                                                >
+                                                    Pay
+                                                </button>
+                                            ) : (
+                                                <span className="text-gray-400 text-sm">
+                                                    Paid
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td
+                                        colSpan={isAdmin ? 8 : 7}
+                                        className="px-4 py-2 border text-center text-gray-500"
+                                    >
+                                        No invoices available.
                                     </td>
                                 </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="7" className="px-4 py-2 border text-center text-gray-500">
-                                    No invoices available.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {/* Headless UI Dialog */}
+            {/* Payment Confirmation Modal */}
             <Transition appear show={isOpen} as={Fragment}>
                 <Dialog as="div" className="relative z-10" onClose={closeModal}>
                     <Transition.Child
@@ -119,10 +171,11 @@ export default function ShopInvoicesIndex() {
                                         Confirm Payment
                                     </Dialog.Title>
                                     <Dialog.Description className="mt-2 text-sm text-gray-500">
-                                        Are you sure you want to pay invoice #{selectedInvoice?.id}?
+                                        Are you sure you want to pay invoice{" "}
+                                        <strong>{selectedInvoice?.id}</strong>?
                                     </Dialog.Description>
 
-                                    <div className="mt-4 flex justify-end gap-2">
+                                    <div className="mt-5 flex justify-end gap-3">
                                         <button
                                             onClick={closeModal}
                                             className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"

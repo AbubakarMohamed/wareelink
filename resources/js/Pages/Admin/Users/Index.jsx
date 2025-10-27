@@ -1,10 +1,8 @@
-// resources/js/Pages/Admin/Users/Index.jsx
-
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, router } from "@inertiajs/react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Menu, Transition } from "@headlessui/react";
-import { EllipsisVerticalIcon } from "@heroicons/react/24/outline";
+import { EllipsisVerticalIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import {
     useReactTable,
     getCoreRowModel,
@@ -21,18 +19,48 @@ export default function Index({ users, flash }) {
     const [search, setSearch] = useState("");
     const [roleFilter, setRoleFilter] = useState("all");
 
-    // ✅ Dialog State
-    const [isAddOpen, setIsAddOpen] = useState(false);
-    const [isEditOpen, setIsEditOpen] = useState(false);
-    const [selectedUser, setSelectedUser] = useState(null);
+    // ✅ Dialogs & Form State
+    const [modal, setModal] = useState({
+        isOpen: false,
+        type: "", // "add" | "edit" | "delete"
+        user: null,
+    });
+
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         password: "",
         role: "",
+        company_id: "",
+        warehouse_id: "",
     });
 
-    // ✅ Filter Users
+    const [companies, setCompanies] = useState([]);
+    const [warehouses, setWarehouses] = useState([]);
+
+    // ✅ Fetch companies when role changes
+    useEffect(() => {
+        if (formData.role === "warehouse_admin") {
+            fetch("/api/companies")
+                .then((res) => res.json())
+                .then((data) => setCompanies(data))
+                .catch((err) => console.error("Error fetching companies:", err));
+        }
+    }, [formData.role]);
+
+    // ✅ Fetch warehouses when company is selected
+    useEffect(() => {
+        if (formData.role === "warehouse_admin" && formData.company_id) {
+            fetch(`/api/companies/${formData.company_id}/warehouses`)
+                .then((res) => res.json())
+                .then((data) => setWarehouses(data))
+                .catch((err) => console.error("Error fetching warehouses:", err));
+        } else {
+            setWarehouses([]);
+        }
+    }, [formData.role, formData.company_id]);
+
+    // ✅ Filtered Users
     const filteredUsers = useMemo(() => {
         return users.filter((user) => {
             const matchesSearch =
@@ -43,7 +71,7 @@ export default function Index({ users, flash }) {
         });
     }, [users, search, roleFilter]);
 
-    // ✅ Table Setup
+    // ✅ Table Config
     const columnHelper = createColumnHelper();
     const columns = [
         columnHelper.accessor("id", { header: "ID" }),
@@ -78,7 +106,7 @@ export default function Index({ users, flash }) {
                                 <Menu.Item>
                                     {({ active }) => (
                                         <button
-                                            onClick={() => handleEdit(info.row.original)}
+                                            onClick={() => openModal("edit", info.row.original)}
                                             className={`${
                                                 active ? "bg-gray-100" : ""
                                             } w-full text-left px-4 py-2 text-sm text-gray-700`}
@@ -90,9 +118,7 @@ export default function Index({ users, flash }) {
                                 <Menu.Item>
                                     {({ active }) => (
                                         <button
-                                            onClick={() =>
-                                                handleDelete(info.row.original.id)
-                                            }
+                                            onClick={() => openModal("delete", info.row.original)}
                                             className={`${
                                                 active ? "bg-gray-100" : ""
                                             } w-full text-left px-4 py-2 text-sm text-red-600`}
@@ -117,42 +143,56 @@ export default function Index({ users, flash }) {
         getPaginationRowModel: getPaginationRowModel(),
     });
 
-    // ✅ Delete User
-    const handleDelete = (id) => {
-        if (confirm("Are you sure you want to delete this user?")) {
-            router.delete(route("admin.users.destroy", id));
+    // ✅ Modal Handlers
+    const openModal = (type, user = null) => {
+        setModal({ isOpen: true, type, user });
+        if (type === "edit" && user) {
+            setFormData({
+                name: user.name,
+                email: user.email,
+                password: "",
+                role: user.role,
+                company_id: user.company_id || "",
+                warehouse_id: user.warehouse_id || "",
+            });
+        } else if (type === "add") {
+            setFormData({
+                name: "",
+                email: "",
+                password: "",
+                role: "",
+                company_id: "",
+                warehouse_id: "",
+            });
         }
     };
 
-    // ✅ Add User
+    const closeModal = () => {
+        setModal({ isOpen: false, type: "", user: null });
+    };
+
+    // ✅ CRUD
     const handleAdd = (e) => {
         e.preventDefault();
         router.post(route("admin.users.store"), formData, {
-            onSuccess: () => {
-                setIsAddOpen(false);
-                setFormData({ name: "", email: "", password: "", role: "tenant" });
-            },
+            onSuccess: closeModal,
         });
-    };
-
-    // ✅ Edit User
-    const handleEdit = (user) => {
-        setSelectedUser(user);
-        setFormData({ name: user.name, email: user.email, password: "", role: user.role });
-        setIsEditOpen(true);
     };
 
     const handleUpdate = (e) => {
         e.preventDefault();
-        router.put(route("admin.users.update", selectedUser.id), formData, {
-            onSuccess: () => {
-                setIsEditOpen(false);
-                setSelectedUser(null);
-            },
+        router.put(route("admin.users.update", modal.user.id), formData, {
+            onSuccess: closeModal,
         });
     };
 
-    // ✅ Export to Excel
+    const handleDelete = () => {
+        router.delete(route("admin.users.destroy", modal.user.id), {
+            onSuccess: closeModal,
+        });
+    };
+
+    // ✅ Export
     const exportToExcel = () => {
         const worksheet = XLSX.utils.json_to_sheet(filteredUsers);
         const workbook = XLSX.utils.book_new();
@@ -160,7 +200,6 @@ export default function Index({ users, flash }) {
         XLSX.writeFile(workbook, "users.xlsx");
     };
 
-    // ✅ Export to PDF (fixed)
     const exportToPDF = () => {
         const doc = new jsPDF();
         doc.text("Users Report", 14, 10);
@@ -179,9 +218,9 @@ export default function Index({ users, flash }) {
             <Head title="Users" />
 
             <div className="py-8">
-                <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 ">
                     <div className="bg-white shadow rounded-lg overflow-hidden p-4">
-                        {/* ✅ Search + Filter + Export + Add */}
+                        {/* ✅ Controls */}
                         <div className="flex justify-between items-center mb-4">
                             <input
                                 type="text"
@@ -201,21 +240,26 @@ export default function Index({ users, flash }) {
                                 <option value="warehouse_admin">Warehouse Admin</option>
                                 <option value="shop">Shop</option>
                             </select>
+                            <select
+                                value={table.getState().pagination.pageSize}
+                                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                                className="border rounded px-2 py-1"
+                            >
+                                {[5, 10, 20, 50].map((size) => (
+                                    <option key={size} value={size}>
+                                        Show {size}
+                                    </option>
+                                ))}
+                            </select>
                             <div className="flex gap-2">
-                                <button
-                                    onClick={exportToExcel}
-                                    className="px-3 py-2 bg-green-500 text-white rounded"
-                                >
+                                <button onClick={exportToExcel} className="px-3 py-2 bg-green-500 text-white rounded">
                                     Export Excel
                                 </button>
-                                <button
-                                    onClick={exportToPDF}
-                                    className="px-3 py-2 bg-red-500 text-white rounded"
-                                >
+                                <button onClick={exportToPDF} className="px-3 py-2 bg-red-500 text-white rounded">
                                     Export PDF
                                 </button>
                                 <button
-                                    onClick={() => setIsAddOpen(true)}
+                                    onClick={() => openModal("add")}
                                     className="px-3 py-2 bg-blue-500 text-white rounded"
                                 >
                                     + Add User
@@ -223,7 +267,7 @@ export default function Index({ users, flash }) {
                             </div>
                         </div>
 
-                        {/* ✅ Users Table */}
+                        {/* ✅ Table */}
                         <table className="min-w-full border border-gray-200">
                             <thead className="bg-gray-50">
                                 {table.getHeaderGroups().map((hg) => (
@@ -263,7 +307,7 @@ export default function Index({ users, flash }) {
                             </tbody>
                         </table>
 
-                        {/* ✅ Pagination */}
+                        {/* Pagination */}
                         <div className="flex justify-between items-center px-6 py-3">
                             <button
                                 onClick={() => table.previousPage()}
@@ -287,116 +331,165 @@ export default function Index({ users, flash }) {
                 </div>
             </div>
 
-            {/* ✅ Add User Modal */}
-            {isAddOpen && (
+            {/* ✅ Reusable Modal */}
+            {modal.isOpen && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-20">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-96">
-                        <h3 className="text-lg font-bold mb-4">Add User</h3>
-                        <form onSubmit={handleAdd} className="space-y-4">
-                            <input
-                                type="text"
-                                placeholder="Name"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full border px-3 py-2 rounded"
-                                required
-                            />
-                            <input
-                                type="email"
-                                placeholder="Email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full border px-3 py-2 rounded"
-                                required
-                            />
-                            <input
-                                type="password"
-                                placeholder="Password"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="w-full border px-3 py-2 rounded"
-                                required
-                            />
-                            <select
-                                value={formData.role}
-                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                className="w-full border px-3 py-2 rounded"
-                            >
-                                <option value="admin">Admin</option>
-                                <option value="company">Company</option>
-                                <option value="warehouse_admin">Warehouse Admin</option>
-                                <option value="shop">Shop</option>
-                            </select>
-                            <div className="flex justify-end gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsAddOpen(false)}
-                                    className="px-4 py-2 border rounded"
-                                >
-                                    Cancel
-                                </button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">
-                                    Save
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                    <div className="bg-white rounded-lg shadow-lg p-6 w-96 relative">
+                        {/* X Close Button */}
+                        <button
+                            onClick={closeModal}
+                            className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+                        >
+                            <XMarkIcon className="w-5 h-5" />
+                        </button>
 
-            {/* ✅ Edit User Modal */}
-            {isEditOpen && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-20">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-96">
-                        <h3 className="text-lg font-bold mb-4">Edit User</h3>
-                        <form onSubmit={handleUpdate} className="space-y-4">
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full border px-3 py-2 rounded"
-                                required
-                            />
-                            <input
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full border px-3 py-2 rounded"
-                                required
-                            />
-                            <input
-                                type="password"
-                                placeholder="New Password (optional)"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="w-full border px-3 py-2 rounded"
-                            />
-                            <select
-                                value={formData.role}
-                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                className="w-full border px-3 py-2 rounded"
-                            >
-                                <option value="admin">Admin</option>
-                                <option value="company">Company</option>
-                                <option value="warehouse_admin">Warehouse Admin</option>
-                                <option value="shop">Shop</option>
-                            </select>
-                            <div className="flex justify-end gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsEditOpen(false)}
-                                    className="px-4 py-2 border rounded"
-                                >
-                                    Cancel
-                                </button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">
-                                    Update
-                                </button>
-                            </div>
-                        </form>
+                        {modal.type === "add" && (
+                            <>
+                                <h3 className="text-lg font-bold mb-4">Add User</h3>
+                                <form onSubmit={handleAdd} className="space-y-4">
+                                    {renderFormFields()}
+                                    <div className="flex justify-end gap-2">
+                                        <button type="button" onClick={closeModal} className="px-4 py-2 border rounded">
+                                            Cancel
+                                        </button>
+                                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">
+                                            Save
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        )}
+
+                        {modal.type === "edit" && (
+                            <>
+                                <h3 className="text-lg font-bold mb-4">Edit User</h3>
+                                <form onSubmit={handleUpdate} className="space-y-4">
+                                    {renderFormFields(true)}
+                                    <div className="flex justify-end gap-2">
+                                        <button type="button" onClick={closeModal} className="px-4 py-2 border rounded">
+                                            Cancel
+                                        </button>
+                                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">
+                                            Update
+                                        </button>
+                                    </div>
+                                </form>
+                            </>
+                        )}
+
+                        {modal.type === "delete" && (
+                            <>
+                                <h3 className="text-lg font-bold mb-4 text-red-600">Confirm Delete</h3>
+                                <p className="mb-6 text-gray-600">
+                                    Are you sure you want to delete{" "}
+                                    <strong>{modal.user?.name}</strong>?
+                                </p>
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={closeModal} className="px-4 py-2 border rounded">
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleDelete}
+                                        className="px-4 py-2 bg-red-600 text-white rounded"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
         </AuthenticatedLayout>
     );
+
+    // ✅ Shared Form Fields Renderer
+    function renderFormFields(isEdit = false) {
+        return (
+            <>
+                <input
+                    type="text"
+                    placeholder="Name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full border px-3 py-2 rounded"
+                    required
+                />
+                <input
+                    type="email"
+                    placeholder="Email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full border px-3 py-2 rounded"
+                    required
+                />
+                <input
+                    type="password"
+                    placeholder={isEdit ? "New Password (optional)" : "Password"}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full border px-3 py-2 rounded"
+                    {...(isEdit ? {} : { required: true })}
+                />
+
+                <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className="w-full border px-3 py-2 rounded"
+                    required
+                >
+                    <option value="">Select Role</option>
+                    <option value="admin">Admin</option>
+                    <option value="company">Company</option>
+                    <option value="warehouse_admin">Warehouse Admin</option>
+                    <option value="shop">Shop</option>
+                </select>
+
+                {formData.role === "warehouse_admin" && (
+                    <>
+                        <select
+                            value={formData.company_id}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    company_id: e.target.value,
+                                    warehouse_id: "",
+                                })
+                            }
+                            className="w-full border px-3 py-2 rounded"
+                            required
+                        >
+                            <option value="">Select Company</option>
+                            {companies.map((company) => (
+                                <option key={company.id} value={company.id}>
+                                    {company.name}
+                                </option>
+                            ))}
+                        </select>
+
+                        {formData.company_id && (
+                            <select
+                                value={formData.warehouse_id}
+                                onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        warehouse_id: e.target.value,
+                                    })
+                                }
+                                className="w-full border px-3 py-2 rounded"
+                                required
+                            >
+                                <option value="">Select Warehouse</option>
+                                {warehouses.map((warehouse) => (
+                                    <option key={warehouse.id} value={warehouse.id}>
+                                        {warehouse.name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </>
+                )}
+            </>
+        );
+    }
 }
